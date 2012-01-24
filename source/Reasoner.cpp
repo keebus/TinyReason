@@ -38,16 +38,26 @@ Reasoner::~Reasoner() { }
 
 bool Reasoner::isSatisfiable(const Concept* pConcept, Model* pModel) const
 {
+	vector<const Concept*> singleton;
+	singleton.push_back(pConcept);
+	return isSatisfiable(singleton, pModel);
+}
+
+bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model* pModel) const
+{
 	CompletionTree* pCompletionTree = new CompletionTree;
 	Node* pNode = pCompletionTree->createNode();
-	pNode->complexConcepts.insert(pConcept);
+	// Add all concepts
+	for (size_t i = 0; i < concepts.size(); ++i)
+		pNode->add(concepts[i]);
 
 	set<CompletionTree*> completionTrees;
 	completionTrees.insert(pCompletionTree);
 
 	// Make a queue containing expandable concepts
 	ExpandableConceptQueue openConcepts;
-	openConcepts.push(new ExpandableConcept(pCompletionTree, pNode, pConcept));
+	for (size_t i = 0; i < concepts.size(); ++i)
+		openConcepts.push(new ExpandableConcept(pCompletionTree, pNode, concepts[i]));
 
 	// Then... go!
 	list<const ExpandableConcept*> reinsertionList;
@@ -75,6 +85,9 @@ bool Reasoner::isSatisfiable(const Concept* pConcept, Model* pModel) const
 				// Can we expand it now?
 				CompletionTree* pNewCompletionTree = 0;
 				ExpansionResult result = expand(openConcepts, pEC, pNewCompletionTree);
+				// If the expansion algorithm created a new completion tree, add it to our active set
+				if (pNewCompletionTree)
+					completionTrees.insert(pNewCompletionTree);
 				switch (result)
 				{
 					case EXPANSION_RESULT_NOT_POSSIBLE:
@@ -182,9 +195,25 @@ bool Reasoner::Node::contains(const Concept * pConcept)
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 Reasoner::CompletionTree::~CompletionTree()
 {
 	deleteAll(mNodes);
+}
+
+std::pair<Reasoner::CompletionTree*, Reasoner::Node*> Reasoner::CompletionTree::duplicate(const Node* pNode) const
+{
+	CompletionTree* pCompletionTree = new CompletionTree;
+	Node* pCorrespondingNode;
+	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
+	{
+		Node* pNewNode = new Node(**it);
+		pCompletionTree->mNodes.insert(pNewNode);
+		if (*it == pNode)
+			pCorrespondingNode = pNewNode;
+	}
+	return pair<Reasoner::CompletionTree*, Reasoner::Node*>(pCompletionTree, pCorrespondingNode);
 }
 
 void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Model* pModel) const
@@ -298,7 +327,19 @@ Reasoner::ExpansionResult Reasoner::expand(ExpandableConceptQueue& openConcepts,
 			return EXPANSION_RESULT_OK_SKIP;
 
 		case Concept::TYPE_DISJUNCTION:
-			return EXPANSION_RESULT_CLASH; // FIXME
+		{
+			// We now need to duplicate the incoming completion tree.
+			// This will clone the completion tree returning the new completion tree and the corresponding node to the one given.
+			std::pair<CompletionTree*, Node*> result = pExpandableConcept->pCompletionTree->duplicate(pExpandableConcept->pNode);
+			pNewCompletionTree = result.first;
+			// Now add the first concept of the disjunction to the actual completion tree
+			if (pExpandableConcept->pNode->add(pExpandableConcept->pConcept->getConcept1()))
+				openConcepts.push(new ExpandableConcept(pExpandableConcept->pCompletionTree, pExpandableConcept->pNode, pExpandableConcept->pConcept->getConcept1()));
+			// then add the second concept of the disjunction to the new completion tree
+			if (result.second->add(pExpandableConcept->pConcept->getConcept2()))
+				openConcepts.push(new ExpandableConcept(result.first, result.second, pExpandableConcept->pConcept->getConcept2()));
+			return EXPANSION_RESULT_OK_SKIP;
+		}
 
 		case Concept::TYPE_EXISTENTIAL_RESTRICTION:
 		{

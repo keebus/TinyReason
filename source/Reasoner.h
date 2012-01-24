@@ -37,6 +37,7 @@ public:
 	Reasoner(const SymbolDictionary* pSymbolDictionary, const ConceptManager* pConceptManager);
 	~Reasoner();
 	bool isSatisfiable(const Concept* pConcept, Model* pModel = 0) const;
+	bool isSatisfiable(const std::vector<const Concept*>& concepts, Model* pModel = 0) const;
 private:
 
 	struct Node {
@@ -61,6 +62,7 @@ private:
 			mNodes.insert(pNode);
 			return pNode;
 		}
+		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode) const;
 		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
 	private:
 		typedef std::set<Node*> NodeSet;

@@ -35,8 +35,12 @@ class ConceptManager {
 public:
 	ConceptManager(SymbolDictionary* pSD);
 	~ConceptManager();
-	const Concept* parse(const std::string& str) const;
-	const Concept* parse(std::istream& source) const;
+	const Concept* parseConcept(const std::string& str) const;
+	const Concept* parseConcept(std::istream& source) const;
+
+	void parseConcepts(const std::string& str, std::vector<const Concept*>& concepts) const;
+	void parseConcepts(std::istream& source, std::vector<const Concept*>& concepts) const;
+
 	const Concept* makeNegation(const Concept* pConcept) const;
 	const Concept* getAtomicConcept(bool isPositive, Symbol symbol) const;
 	void clearCache() const;
@@ -50,16 +54,20 @@ private:
 		T_AND,
 		T_OR,
 		T_SOME,
-		T_ALL,
+		T_SOMETHING,
+		T_ANYTHING,
 		T_ONLY,
 		T_IN,
 		T_LPAR,
 		T_RPAR,
-		T_NONE,
-		T_IS
+		T_NOTHING,
+		T_ISA,
+		T_SEMICOLON
 	};
+	
+	void parseComplexConceptList(std::istream& source, std::vector<const Concept*>& concepts) const;
+	const Concept* parseSingleComplexConcept(std::istream& source) const;
 
-	const Concept* parseConcept(std::istream& source) const;
 	const Concept* parseSubsumption(std::istream& source) const;
 	const Concept* parseDisjunction(std::istream& source) const;
 	const Concept* parseConjunction(std::istream& source) const;

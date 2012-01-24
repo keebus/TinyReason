@@ -36,25 +36,45 @@ int main(int argc, char** argv)
 {
 	try
 	{
-		string concept = "";
-		for (int i = 1; i < argc; ++i)
-			concept += string(argv[i]) + " ";
-
+		if (argc < 3)
+		{
+			cout << "Usage: saltr (<ontology-file-name|-) <concepts-to-test-satisfiability>";
+			return -1;
+		}
+		
 		SymbolDictionary sd;
 		ConceptManager cp(&sd);
-		const Concept* pConcept = cp.parse(concept);
-		cout << "Parsed: " << pConcept->toString(sd) << endl;
+
+		vector<const Concept*> ontologyConcepts;
+		if (argv[1][0] != '-')
+		{
+			ifstream f(argv[1]);
+			cp.parseConcepts(f, ontologyConcepts);
+			cout << "Ontology concepts (optimized and normalized):" << endl;
+			for (size_t i = 0; i < ontologyConcepts.size(); ++i)
+				cout << "\t* " << ontologyConcepts[i]->toString(sd) << endl;
+		}
+
+		string conceptString = "";
+		for (int i = 2; i < argc; ++i)
+			conceptString += string(argv[i]) + " ";
+
+		vector<const Concept*> concepts;
+		cp.parseConcepts(conceptString, concepts);
+		cout << "Parsed concepts: " << endl;
+		for (size_t i = 0; i < concepts.size(); ++i)
+			cout << "\t* " << concepts[i]->toString(sd) << endl;
 
 		Reasoner r(&sd, &cp);
 		Model example;
-		if (r.isSatisfiable(pConcept, &example))
+		if (r.isSatisfiable(concepts, &example))
 		{
-			cout << "Concept satisfiable!" << endl;
+			cout << "Conjunction of concepts are satisfiable!" << endl;
 			ofstream outFile("example.dot");
 			example.dumpToDOTFile(sd, outFile);
 			cout << "Example dumped to example.dot" << endl;
 		} else
-			cout << "Concept not satisfiable!" << endl;
+			cout << "Conjunction of concepts are not satisfiable!" << endl;
 
 		return 0;
 
