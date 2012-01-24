@@ -34,11 +34,10 @@ class Concept {
 public:
 
 	enum Type {
-		TYPE_ATOMIC,
-		TYPE_NEGATION,
+		TYPE_POSITIVE_ATOMIC,
+		TYPE_NEGATIVE_ATOMIC,
 		TYPE_CONJUNCTION,
 		TYPE_DISJUNCTION,
-		TYPE_SUBSUMPTION,
 		TYPE_EXISTENTIAL,
 		TYPE_UNIVERSAL,
 	};
@@ -46,8 +45,7 @@ public:
 	static const Concept* getTopConcept();
 	static const Concept* getBottomConcept();
 
-	Concept(Symbol symbol);
-	Concept(const Concept* pConcept);
+	Concept(bool positive, Symbol symbol);
 	Concept(Type type, const Concept* pConcept1, const Concept* pConcept2);
 	Concept(Type type, Symbol role, const Concept* pQualificationConcept);
 	~Concept();
@@ -56,9 +54,6 @@ public:
 	}
 	Type getType() const {
 		return mType;
-	}
-	const Concept* getConcept() const {
-		return mpConcept;
 	}
 	const Concept* getConcept1() const {
 		return mpConcept1;
@@ -72,19 +67,23 @@ public:
 	Symbol getRole() const {
 		return mRole;
 	}
+	bool isExpandable() const;
+	bool isExpansionDeterministic() const;
 	std::string toString(const SymbolDictionary& sd) const;
 private:
 	Type mType;
 
 	union {
+		// For atomic concepts
 		Symbol mSymbol;
-		const Concept* mpConcept;
 
+		// For disj and conj concepts
 		struct {
 			const Concept* mpConcept1;
 			const Concept* mpConcept2;
 		};
 
+		// For role restriction concepts
 		struct {
 			Symbol mRole;
 			const Concept* mpQualificationConcept;

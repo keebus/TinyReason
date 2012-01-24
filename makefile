@@ -1,5 +1,5 @@
-CFLAGS:= -Wall -Isource -I../IonScript/library/source
-LFLAGS:=  -static
+CFLAGS:= -Wall
+LFLAGS:= -static
 LIBS:=
 
 ifdef DEBUG
@@ -9,11 +9,11 @@ else
 endif
 
 ifdef WIN32
-	TARGET:=alcr.exe
+	TARGET:=salcr.exe
 	LFLAGS+=
 	LIBS+=
 else
-	TARGET:=alcr.elf
+	TARGET:=salcr.elf
 	LIBS+= 
 endif
 

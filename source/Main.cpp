@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 	{
 		SymbolDictionary sd;
 		ConceptManager cp(&sd);
-		const Concept* pConcept = cp.parse("Mother is (Woman and hasChild some all)");
+		const Concept* pConcept = cp.parse("Mother is not (Woman and hasChild some all)");
 		cout << "Parsed: " << pConcept->toString(sd) << endl;
 
 		Reasoner r(&sd, &cp);

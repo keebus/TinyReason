@@ -66,21 +66,82 @@ const Concept* ConceptManager::parse(std::istream& source)
 
 const Concept* ConceptManager::makeNegation(const Concept* pConcept)
 {
-	if (pConcept->getType() == Concept::TYPE_NEGATION)
-		return pConcept->getConcept();
-	else
+	if (pConcept == Concept::getTopConcept())
+		return Concept::getBottomConcept();
+	else if (pConcept == Concept::getBottomConcept())
+		return Concept::getTopConcept();
+
+	// neither top nor bottom
+	
+	switch (pConcept->getType())
 	{
-		ConceptToConceptMap::iterator it = mNegationConcept.find(pConcept);
-		if (it == mNegationConcept.end())
-			it = mNegationConcept.insert(it, ConceptToConceptMap::value_type(pConcept, new Concept(pConcept)));
-		return it->second;
+		case Concept::TYPE_POSITIVE_ATOMIC:
+		{
+			SymbolToConceptMap::iterator it = mNegativeAtomicConcepts.find(pConcept->getSymbol());
+			if (it == mNegativeAtomicConcepts.end())
+				it = mNegativeAtomicConcepts.insert(it, SymbolToConceptMap::value_type(pConcept->getSymbol(), new Concept(false, pConcept->getSymbol())));
+			return it->second;
+
+		}
+		case Concept::TYPE_NEGATIVE_ATOMIC:
+		{
+			SymbolToConceptMap::iterator it = mPositiveAtomicConcepts.find(pConcept->getSymbol());
+			if (it == mPositiveAtomicConcepts.end())
+				it = mPositiveAtomicConcepts.insert(it, SymbolToConceptMap::value_type(pConcept->getSymbol(), new Concept(true, pConcept->getSymbol())));
+			return it->second;
+		}
+		case Concept::TYPE_CONJUNCTION:
+		{
+			ConceptPair cp(makeNegation(pConcept->getConcept1()), makeNegation(pConcept->getConcept2()));
+			ConceptPairToConceptMap::iterator it = mDisjunctionConcepts.find(cp);
+			if (it == mDisjunctionConcepts.end())
+			{
+				ConceptPair swappedCP(cp.second, cp.first);
+				it = mDisjunctionConcepts.find(swappedCP);
+				if (it == mDisjunctionConcepts.end())
+					it = mDisjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(cp, new Concept(Concept::TYPE_DISJUNCTION, cp.first, cp.second)));
+			}
+			return it->second;
+		}
+		case Concept::TYPE_DISJUNCTION:
+		{
+			ConceptPair cp(makeNegation(pConcept->getConcept1()), makeNegation(pConcept->getConcept2()));
+			ConceptPairToConceptMap::iterator it = mConjunctionConcepts.find(cp);
+			if (it == mConjunctionConcepts.end())
+			{
+				ConceptPair swappedCP(cp.second, cp.first);
+				it = mConjunctionConcepts.find(swappedCP);
+				if (it == mConjunctionConcepts.end())
+					it = mConjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(cp, new Concept(Concept::TYPE_CONJUNCTION, cp.first, cp.second)));
+			}
+			return it->second;
+		}
+		case Concept::TYPE_EXISTENTIAL:
+		{
+			SymbolConceptPair scp(pConcept->getRole(), makeNegation(pConcept->getQualificationConcept()));
+			SymbolConceptPairToConceptMap::iterator it = mUniversalConcepts.find(scp);
+			if (it == mUniversalConcepts.end())
+				it = mUniversalConcepts.insert(it, SymbolConceptPairToConceptMap::value_type(scp, new Concept(Concept::TYPE_UNIVERSAL, scp.first, scp.second)));
+			return it->second;
+		}
+		case Concept::TYPE_UNIVERSAL:
+		{
+			SymbolConceptPair scp(pConcept->getRole(), makeNegation(pConcept->getQualificationConcept()));
+			SymbolConceptPairToConceptMap::iterator it = mExistentialConcepts.find(scp);
+			if (it == mExistentialConcepts.end())
+				it = mExistentialConcepts.insert(it, SymbolConceptPairToConceptMap::value_type(scp, new Concept(Concept::TYPE_EXISTENTIAL, scp.first, scp.second)));
+			return it->second;
+		}
+		default:
+			throw Exception("Invalid concept received while making negation.");
 	}
+	return 0;
 }
 
 void ConceptManager::clearConcepts()
 {
-	deleteAll(mAtomicConcepts);
-	deleteAll(mNegationConcept);
+	deleteAll(mPositiveAtomicConcepts);
+	deleteAll(mNegativeAtomicConcepts);
 	deleteAll(mConjunctionConcepts);
 	deleteAll(mDisjunctionConcepts);
 	deleteAll(mExistentialConcepts);
@@ -101,11 +162,16 @@ const Concept* ConceptManager::parseSubsumption(std::istream& source)
 	if (mTokenType == T_IS)
 	{
 		nextToken(source);
-		const Concept * pC2 = parseDisjunction(source);
-		ConceptPair p(pC1, pC2);
-		ConceptPairToConceptMap::iterator it = mSubsumptionConcepts.find(p);
-		if (it == mSubsumptionConcepts.end())
-			it = mSubsumptionConcepts.insert(it, std::pair<ConceptPair, const Concept*>(p, new Concept(Concept::TYPE_SUBSUMPTION, pC1, pC2)));
+		const Concept* pNegatedC1 = makeNegation(pC1);
+		const Concept* pC2 = parseDisjunction(source);
+		ConceptPair cp(pNegatedC1, pC2);
+		ConceptPairToConceptMap::iterator it = mDisjunctionConcepts.find(cp);
+		if (it == mDisjunctionConcepts.end())
+		{
+			it = mDisjunctionConcepts.find(ConceptPair(cp.second, cp.first));
+			if (it == mDisjunctionConcepts.end())
+				it = mDisjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(cp, new Concept(Concept::TYPE_DISJUNCTION, cp.first, cp.second)));
+		}
 		return it->second;
 	}
 	return pC1;
@@ -118,13 +184,13 @@ const Concept* ConceptManager::parseDisjunction(std::istream& source)
 	{
 		nextToken(source);
 		const Concept * pC2 = parseConjunction(source);
-		ConceptPair p(pC1, pC2);
-		ConceptPairToConceptMap::iterator it = mDisjunctionConcepts.find(p);
+		ConceptPair cp(pC1, pC2);
+		ConceptPairToConceptMap::iterator it = mDisjunctionConcepts.find(cp);
 		if (it == mDisjunctionConcepts.end())
 		{
 			it = mDisjunctionConcepts.find(ConceptPair(pC2, pC1));
 			if (it == mDisjunctionConcepts.end())
-				it = mDisjunctionConcepts.insert(it, std::pair<ConceptPair, const Concept*>(p, new Concept(Concept::TYPE_DISJUNCTION, pC1, pC2)));
+				it = mDisjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(cp, new Concept(Concept::TYPE_DISJUNCTION, pC1, pC2)));
 		}
 		return it->second;
 	}
@@ -138,14 +204,14 @@ const Concept* ConceptManager::parseConjunction(std::istream& source)
 	{
 		nextToken(source);
 		const Concept * pC2 = parseConjunction(source);
-		ConceptPair p(pC1, pC2);
-		ConceptPairToConceptMap::iterator it = mConjunctionConcepts.find(p);
+		ConceptPair cp(pC1, pC2);
+		ConceptPairToConceptMap::iterator it = mConjunctionConcepts.find(cp);
 		if (it == mConjunctionConcepts.end())
 		{
 			it = mConjunctionConcepts.find(ConceptPair(pC2, pC1));
 
 			if (it == mConjunctionConcepts.end())
-				it = mConjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(p, new Concept(Concept::TYPE_CONJUNCTION, pC1, pC2)));
+				it = mConjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(cp, new Concept(Concept::TYPE_CONJUNCTION, pC1, pC2)));
 		}
 		return it->second;
 	}
@@ -163,7 +229,7 @@ const Concept* ConceptManager::parseSimpleConcept(std::istream& source)
 			nextToken(source);
 			return Concept::getBottomConcept();
 
-		case T_ELEMENT: // Atomic element
+		case T_ELEMENT:
 		{
 			Symbol s = mpSymbolDictionary->get(mTokenString);
 			nextToken(source);
@@ -186,17 +252,16 @@ const Concept* ConceptManager::parseSimpleConcept(std::istream& source)
 					SymbolConceptPair(s, pConcept), new Concept(Concept::TYPE_UNIVERSAL, s, pConcept)));
 				return it->second;
 			} else
-			{
-				SymbolToConceptMap::iterator it = mAtomicConcepts.find(s);
-				if (it == mAtomicConcepts.end())
-					it = mAtomicConcepts.insert(it, SymbolToConceptMap::value_type(s, new Concept(s)));
+			{ // Positive atomic element
+				SymbolToConceptMap::iterator it = mPositiveAtomicConcepts.find(s);
+				if (it == mPositiveAtomicConcepts.end())
+					it = mPositiveAtomicConcepts.insert(it, SymbolToConceptMap::value_type(s, new Concept(true, s)));
 				return it->second;
 			}
 		}
 		case T_NOT: // Negation
 			nextToken(source);
 			return makeNegation(parseSimpleConcept(source));
-
 
 		case T_LPAR: // sub concept
 		{

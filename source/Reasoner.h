@@ -35,9 +35,41 @@ namespace salcr
 class Reasoner {
 public:
 	Reasoner(const SymbolDictionary* pSymbolDictionary, ConceptManager* pConceptManager);
-	 ~Reasoner();
+	~Reasoner();
 	bool isSatisfiable(const Concept* pConcept) const;
 private:
+
+	struct Node {
+		std::set<Symbol> positiveAtomicConcepts;
+		std::set<Symbol> negativeAtomicConcepts;
+		std::set<const Concept*> complexConcepts;
+		std::multimap<Symbol, Node*> relations;
+	};
+
+	class CompletionTree {
+	public:
+		Node* createNode() {
+			Node* pNode = new Node;
+			mNodes.insert(pNode);
+			return pNode;
+		}
+	private:
+		std::set<Node*> mNodes;
+	};
+
+	struct ExpandableConcept {
+		CompletionTree* pCompletionTree;
+		Node* pNode;
+		Concept* pConcept;
+
+		/** Heuristic for choosing the next complex concept to expand in an instance of a completion tree */
+		struct Compare {
+			bool operator()(const ExpandableConcept* pEC1, const ExpandableConcept * pEC2) const;
+		};
+	};
+
+	typedef std::priority_queue<ExpandableConcept*, std::vector<ExpandableConcept*>, ExpandableConcept::Compare> ExpandableConceptQueue;
+
 	const SymbolDictionary* mpSymbolDictionary;
 	ConceptManager* mpConceptManager;
 };

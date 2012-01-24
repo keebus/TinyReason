@@ -82,15 +82,13 @@ private:
 	typedef std::pair<Symbol, const Concept*> SymbolConceptPair;
 
 	typedef std::map< Symbol, const Concept*> SymbolToConceptMap;
-	typedef std::map< const Concept*, const Concept*> ConceptToConceptMap;
 	typedef std::map< ConceptPair, const Concept*> ConceptPairToConceptMap;
 	typedef std::map< SymbolConceptPair, const Concept*> SymbolConceptPairToConceptMap;
 
 	SymbolDictionary* mpSymbolDictionary;
 
-	SymbolToConceptMap mAtomicConcepts;
-	ConceptToConceptMap mNegationConcept;
-	ConceptPairToConceptMap mSubsumptionConcepts;
+	SymbolToConceptMap mPositiveAtomicConcepts;
+	SymbolToConceptMap mNegativeAtomicConcepts;
 	ConceptPairToConceptMap mConjunctionConcepts;
 	ConceptPairToConceptMap mDisjunctionConcepts;
 	SymbolConceptPairToConceptMap mExistentialConcepts;

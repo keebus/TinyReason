@@ -37,7 +37,26 @@ Reasoner::~Reasoner() { }
 
 bool Reasoner::isSatisfiable(const Concept* pConcept) const
 {
+	CompletionTree* pCompletionTree = new CompletionTree;
+	Node* pNode = pCompletionTree->createNode();
+	pNode->complexConcepts.insert(pConcept);
+
+	set<CompletionTree*> completionTrees;
+	completionTrees.insert(pCompletionTree);
+
+
+
 	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool Reasoner::ExpandableConcept::Compare::operator ()(const ExpandableConcept* pEC1, const ExpandableConcept* pEC2) const
+{
+	if (pEC1->pConcept->isExpansionDeterministic())
+		return true;
+	else
+		return false;
 }
 
 }

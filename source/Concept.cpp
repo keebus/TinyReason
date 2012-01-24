@@ -31,23 +31,19 @@ namespace salcr
 
 const Concept* Concept::getTopConcept()
 {
-	static Concept top((Symbol) 1);
+	static Concept top(true, (Symbol) 1);
 	return &top;
 }
 
 const Concept* Concept::getBottomConcept()
 {
-	static Concept bottom((Symbol) 0);
+	static Concept bottom(true, (Symbol) 0);
 	return &bottom;
 }
 
-Concept::Concept(Symbol symbol) :
-mType(TYPE_ATOMIC),
+Concept::Concept(bool positive, Symbol symbol) :
+mType(positive ? TYPE_POSITIVE_ATOMIC : TYPE_NEGATIVE_ATOMIC),
 mSymbol(symbol) { }
-
-Concept::Concept(const Concept* pConcept) :
-mType(TYPE_NEGATION),
-mpConcept(pConcept) { }
 
 Concept::Concept(Type type, const Concept* pConcept1, const Concept* pConcept2) :
 mType(type),
@@ -61,20 +57,32 @@ mpQualificationConcept(pQualificationConcept) { }
 
 Concept::~Concept() { }
 
+bool Concept::isExpandable() const
+{
+	if (mType == TYPE_POSITIVE_ATOMIC || mType == TYPE_NEGATIVE_ATOMIC)
+		return false;
+	return true;
+}
+
+bool Concept::isExpansionDeterministic() const
+{
+	if (mType == TYPE_DISJUNCTION)
+		return false;
+	return true;
+}
+
 std::string Concept::toString(const SymbolDictionary& sd) const
 {
 	switch (mType)
 	{
-		case TYPE_ATOMIC:
+		case TYPE_POSITIVE_ATOMIC:
 			return sd.toName(mSymbol);
-		case TYPE_NEGATION:
-			return "not " + mpConcept->toString(sd);
+		case TYPE_NEGATIVE_ATOMIC:
+			return "not " + sd.toName(mSymbol);
 		case TYPE_CONJUNCTION:
 			return "(" + mpConcept1->toString(sd) + " and " + mpConcept2->toString(sd) + ")";
 		case TYPE_DISJUNCTION:
 			return "(" + mpConcept1->toString(sd) + " or " + mpConcept2->toString(sd) + ")";
-		case TYPE_SUBSUMPTION:
-			return "(" + mpConcept1->toString(sd) + " is " + mpConcept2->toString(sd) + ")";
 		case TYPE_EXISTENTIAL:
 			return sd.toName(mRole) + " some " + mpConcept2->toString(sd);
 		case TYPE_UNIVERSAL:
