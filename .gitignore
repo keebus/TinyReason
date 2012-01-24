@@ -1,0 +1,7 @@
+*/build
+*.bat
+*.exe
+*.lnk
+*.o
+*.a
+nbproject
