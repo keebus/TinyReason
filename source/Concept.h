@@ -38,8 +38,8 @@ public:
 		TYPE_NEGATIVE_ATOMIC,
 		TYPE_CONJUNCTION,
 		TYPE_DISJUNCTION,
-		TYPE_EXISTENTIAL,
-		TYPE_UNIVERSAL,
+		TYPE_EXISTENTIAL_RESTRICTION,
+		TYPE_UNIVERSAL_RESTRICTION,
 	};
 
 	static const Concept* getTopConcept();
@@ -67,6 +67,9 @@ public:
 	Symbol getRole() const {
 		return mRole;
 	}
+	bool isAtomic() const {
+		return mType == TYPE_POSITIVE_ATOMIC || mType == TYPE_NEGATIVE_ATOMIC;
+	}
 	bool isExpandable() const;
 	bool isExpansionDeterministic() const;
 	std::string toString(const SymbolDictionary& sd) const;
@@ -78,12 +81,14 @@ private:
 		Symbol mSymbol;
 
 		// For disj and conj concepts
+
 		struct {
 			const Concept* mpConcept1;
 			const Concept* mpConcept2;
 		};
 
 		// For role restriction concepts
+
 		struct {
 			Symbol mRole;
 			const Concept* mpQualificationConcept;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * ALC Reasoner                                                                *
+ * Simple ALC Reasoner                                                         *
  * Copyright (c) 2012 Canio Massimo Tristano <massimo.tristano@gmail.com>      *
  *                                                                             *
  * This software is provided 'as-is', without any express or implied           *
@@ -24,80 +24,39 @@
 
 #pragma once
 
-#include <iostream>
-#include <string>
-#include <set>
-#include <map>
-#include <list>
-#include <vector>
-#include <sstream>
-#include <exception>
-#include <queue>
-#include <fstream>
-#include <tr1/memory>
-#define shared_ptr std::tr1::shared_ptr
+#include "Common.h"
 
 namespace salcr
 {
-typedef unsigned long Symbol;
 
-// Forward decls
-class Concept;
-class ConceptManager;
-class Reasoner;
-class SymbolDictionary;
-class Model;
-class Instance;
-
-// Base classes
-
-class Exception : public std::exception {
+class Instance {
 public:
-	Exception() throw () { }
-	Exception(const Exception& other) throw () {
-		*this = other;
+	const std::set<const Concept*>& getConcepts() {
+		return mConcepts;
 	}
-	Exception(const std::string& message) throw () {
-		mMessageBuffer << message;
+	void addConcept(const Concept* pConcept) {
+		mConcepts.insert(pConcept);
 	}
-	virtual ~Exception() throw () { }
-	const char* what() const throw () {
-		return mMessageBuffer.str().c_str();
+	void addRoleAccessibility(Symbol role, const Instance* pInstance) {
+		mRoleAccessibilities.insert(std::pair<Symbol, const Instance*> (role, pInstance));
 	}
-	Exception & operator=(const Exception& other) throw () {
-		mMessageBuffer.str(other.mMessageBuffer.str());
-		return *this;
-	}
-protected:
-	std::stringstream mMessageBuffer;
+	void dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream) const;
+private:
+	std::set<const Concept*> mConcepts;
+	std::multimap<Symbol, const Instance*> mRoleAccessibilities;
 };
-/* Some basic algorithms */
-template<class T>
-inline void deleteAll(std::list<T>& someList) {
-	for (typename std::list<T>::iterator it = someList.begin(); it != someList.end();)
-	{
-		delete *it;
-		it = someList.erase(it);
-	}
-}
-template<class T>
-inline void deleteAll(std::vector<T>& someVector) {
-	for (typename std::vector<T>::iterator it = someVector.begin(); it != someVector.end(); ++it)
-		delete *it;
-	someVector.clear();
-}
-template<class T>
-inline void deleteAll(std::set<T>& someVector) {
-	for (typename std::set<T>::iterator it = someVector.begin(); it != someVector.end(); ++it)
-		delete *it;
-	someVector.clear();
-}
-template<class T, class Q>
-inline void deleteAll(std::map<T, Q>& someMap) {
-	for (typename std::map<T, Q>::iterator it = someMap.begin(); it != someMap.end(); ++it)
-		delete it->second;
-	someMap.clear();
-}
+
+class Model {
+public:
+	Model();
+	~Model();
+	Instance* createInstance();
+	void clear();
+	void dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream) const;
+private:
+	std::vector<Instance*> mInstances;
+};
+
 
 }
 

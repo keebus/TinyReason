@@ -1,5 +1,5 @@
 /*******************************************************************************
- * ALC Reasoner                                                                *
+ * Simple ALC Reasoner                                                         *
  * Copyright (c) 2012 Canio Massimo Tristano <massimo.tristano@gmail.com>      *
  *                                                                             *
  * This software is provided 'as-is', without any express or implied           *
@@ -22,48 +22,55 @@
  * distribution.                                                               *
  ******************************************************************************/
 
-#include "Common.h"
-#include "Reasoner.h"
 #include "Model.h"
+#include "Concept.h"
 
 using namespace std;
-using namespace salcr;
 
-/*
- * 
- */
-int main(int argc, char** argv)
+namespace salcr
 {
-	try
-	{
-		string concept = "";
-		for (int i = 1; i < argc; ++i)
-			concept += string(argv[i]) + " ";
 
-		SymbolDictionary sd;
-		ConceptManager cp(&sd);
-		const Concept* pConcept = cp.parse(concept);
-		cout << "Parsed: " << pConcept->toString(sd) << endl;
+void Instance::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream) const
+{
+	outStream << (size_t)this << "[label=\"";
+	for (std::set<const Concept*>::const_iterator it = mConcepts.begin(); it != mConcepts.end(); ++it)
+		outStream << (*it)->toString(symbolDictionary) << "\\n";
+	outStream << "\"];";
 
-		Reasoner r(&sd, &cp);
-		Model example;
-		if (r.isSatisfiable(pConcept, &example))
-		{
-			cout << "Concept satisfiable!" << endl;
-			ofstream outFile("example.dot");
-			example.dumpToDOTFile(sd, outFile);
-			cout << "Example dumped to example.dot" << endl;
-		} else
-			cout << "Concept not satisfiable!" << endl;
+	for (std::multimap<Symbol, const Instance*>::const_iterator it = mRoleAccessibilities.begin(); it != mRoleAccessibilities.end(); ++it)
+		outStream << (size_t)this << " -> " << (size_t) it->second << "[label=\"" << symbolDictionary.toName(it->first) << "\"];";
+}
 
-		return 0;
+////////////////////////////////////////////////////////////////////////////////
 
-	} catch (Exception& e)
-	{
-		cout << e.what() << endl;
-		cout.flush();
-		return -1;
-	}
+Model::Model() { }
+
+Model::~Model()
+{
+	deleteAll(mInstances);
+}
+
+Instance* Model::createInstance()
+{
+	Instance* pInstance = new Instance;
+	mInstances.push_back(pInstance);
+	return pInstance;
+}
+
+void Model::clear()
+{
+	deleteAll(mInstances);
+}
+
+void Model::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream) const
+{
+	outStream << "digraph {rankdir=TB;node[shape=record];";
+
+	for (size_t i = 0; i < mInstances.size(); ++i)
+		mInstances[i]->dumpToDOTFile(symbolDictionary, outStream);
+
+	outStream << "}";
+}
 
 }
 

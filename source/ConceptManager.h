@@ -35,11 +35,11 @@ class ConceptManager {
 public:
 	ConceptManager(SymbolDictionary* pSD);
 	~ConceptManager();
-	const Concept* parse(const std::string& str);
-	const Concept* parse(std::istream& source);
-	const Concept* makeNegation(const Concept* pConcept);
-	void clearConcepts();
-
+	const Concept* parse(const std::string& str) const;
+	const Concept* parse(std::istream& source) const;
+	const Concept* makeNegation(const Concept* pConcept) const;
+	const Concept* getAtomicConcept(bool isPositive, Symbol symbol) const;
+	void clearCache() const;
 private:
 
 	enum TokenType {
@@ -59,21 +59,19 @@ private:
 		T_IS
 	};
 
-	const Concept* getAtomicConcept(const std::string& name);
+	const Concept* parseConcept(std::istream& source) const;
+	const Concept* parseSubsumption(std::istream& source) const;
+	const Concept* parseDisjunction(std::istream& source) const;
+	const Concept* parseConjunction(std::istream& source) const;
+	const Concept* parseSimpleConcept(std::istream& source) const;
 
-	const Concept* parseConcept(std::istream& source);
-	const Concept* parseSubsumption(std::istream& source);
-	const Concept* parseDisjunction(std::istream& source);
-	const Concept* parseConjunction(std::istream& source);
-	const Concept* parseSimpleConcept(std::istream& source);
-
-	void nextToken(std::istream& source);
-	void scanElement(std::istream& source);
-	void throwSyntaxException();
-	inline void getNextChar(std::istream& source) {
+	void nextToken(std::istream& source) const;
+	void scanElement(std::istream& source) const;
+	void throwSyntaxException() const;
+	inline void getNextChar(std::istream& source) const {
 		mCurrChar = source.get();
 	}
-	inline void addAndGetNextChar(std::istream& source) {
+	inline void addAndGetNextChar(std::istream& source) const {
 		mTokenString += mCurrChar;
 		mCurrChar = source.get();
 	}
@@ -87,17 +85,16 @@ private:
 
 	SymbolDictionary* mpSymbolDictionary;
 
-	SymbolToConceptMap mPositiveAtomicConcepts;
-	SymbolToConceptMap mNegativeAtomicConcepts;
-	ConceptPairToConceptMap mConjunctionConcepts;
-	ConceptPairToConceptMap mDisjunctionConcepts;
-	SymbolConceptPairToConceptMap mExistentialConcepts;
-	SymbolConceptPairToConceptMap mUniversalConcepts;
+	mutable SymbolToConceptMap mPositiveAtomicConcepts;
+	mutable SymbolToConceptMap mNegativeAtomicConcepts;
+	mutable ConceptPairToConceptMap mConjunctionConcepts;
+	mutable ConceptPairToConceptMap mDisjunctionConcepts;
+	mutable SymbolConceptPairToConceptMap mExistentialConcepts;
+	mutable SymbolConceptPairToConceptMap mUniversalConcepts;
 
-
-	TokenType mTokenType;
-	std::string mTokenString;
-	char mCurrChar;
+	mutable TokenType mTokenType;
+	mutable std::string mTokenString;
+	mutable char mCurrChar;
 };
 
 }

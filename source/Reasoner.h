@@ -34,44 +34,66 @@ namespace salcr
 
 class Reasoner {
 public:
-	Reasoner(const SymbolDictionary* pSymbolDictionary, ConceptManager* pConceptManager);
+	Reasoner(const SymbolDictionary* pSymbolDictionary, const ConceptManager* pConceptManager);
 	~Reasoner();
-	bool isSatisfiable(const Concept* pConcept) const;
+	bool isSatisfiable(const Concept* pConcept, Model* pModel = 0) const;
 private:
 
 	struct Node {
 		std::set<Symbol> positiveAtomicConcepts;
 		std::set<Symbol> negativeAtomicConcepts;
 		std::set<const Concept*> complexConcepts;
-		std::multimap<Symbol, Node*> relations;
+		std::multimap<Symbol, Node*> roleAccessibilities;
+
+		typedef std::multimap<Symbol, Node*>::iterator RelationMapIterator;
+		typedef std::pair<RelationMapIterator, RelationMapIterator> RelationMapRange;
+
+		bool add(const Concept * pConcept);
+		bool contains(const Concept * pConcept);
 	};
+	typedef std::pair<Symbol, Node*> SymbolNodePair;
 
 	class CompletionTree {
 	public:
-		Node* createNode() {
+		~CompletionTree();
+		Node * createNode() {
 			Node* pNode = new Node;
 			mNodes.insert(pNode);
 			return pNode;
 		}
+		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
 	private:
-		std::set<Node*> mNodes;
+		typedef std::set<Node*> NodeSet;
+		NodeSet mNodes;
 	};
 
 	struct ExpandableConcept {
 		CompletionTree* pCompletionTree;
 		Node* pNode;
-		Concept* pConcept;
+		const Concept* pConcept;
+		ExpandableConcept(CompletionTree* pCompletionTree, Node* pNode, const Concept * pConcept) :
+		pCompletionTree(pCompletionTree), pNode(pNode), pConcept(pConcept) { }
 
 		/** Heuristic for choosing the next complex concept to expand in an instance of a completion tree */
 		struct Compare {
 			bool operator()(const ExpandableConcept* pEC1, const ExpandableConcept * pEC2) const;
 		};
+
 	};
 
-	typedef std::priority_queue<ExpandableConcept*, std::vector<ExpandableConcept*>, ExpandableConcept::Compare> ExpandableConceptQueue;
+	enum ExpansionResult {
+		EXPANSION_RESULT_NOT_POSSIBLE,
+		EXPANSION_RESULT_OK_SKIP,
+		EXPANSION_RESULT_OK_REINSERT,
+		EXPANSION_RESULT_CLASH
+	};
+
+	typedef std::priority_queue<const ExpandableConcept*, std::vector<const ExpandableConcept*>, ExpandableConcept::Compare> ExpandableConceptQueue;
+
+	static ExpansionResult expand(ExpandableConceptQueue& openConcepts, const ExpandableConcept* pExpandableConcept, CompletionTree*& pNewCompletionTree);
 
 	const SymbolDictionary* mpSymbolDictionary;
-	ConceptManager* mpConceptManager;
+	const ConceptManager* mpConceptManager;
 };
 
 }

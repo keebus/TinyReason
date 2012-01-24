@@ -5,3 +5,5 @@
 *.o
 *.a
 nbproject
+*.dot
+*.png

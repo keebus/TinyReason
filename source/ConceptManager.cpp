@@ -30,26 +30,18 @@ using namespace std;
 namespace salcr
 {
 
-template<class T, class Q>
-inline void deleteAll(std::map<T, Q>& someMap)
-{
-	for (typename std::map<T, Q>::iterator it = someMap.begin(); it != someMap.end(); ++it)
-		delete it->second;
-	someMap.clear();
-}
-
 ConceptManager::ConceptManager(SymbolDictionary* pSD) :
 mpSymbolDictionary(pSD) { }
 
 ConceptManager::~ConceptManager() { }
 
-const Concept* ConceptManager::parse(const std::string& str)
+const Concept* ConceptManager::parse(const std::string& str) const
 {
 	istringstream source(str);
 	return parse(source);
 }
 
-const Concept* ConceptManager::parse(std::istream& source)
+const Concept* ConceptManager::parse(std::istream& source) const
 {
 	getNextChar(source);
 	mTokenType = T_EOS;
@@ -64,7 +56,7 @@ const Concept* ConceptManager::parse(std::istream& source)
 	return pConcept;
 }
 
-const Concept* ConceptManager::makeNegation(const Concept* pConcept)
+const Concept* ConceptManager::makeNegation(const Concept* pConcept) const
 {
 	if (pConcept == Concept::getTopConcept())
 		return Concept::getBottomConcept();
@@ -72,7 +64,7 @@ const Concept* ConceptManager::makeNegation(const Concept* pConcept)
 		return Concept::getTopConcept();
 
 	// neither top nor bottom
-	
+
 	switch (pConcept->getType())
 	{
 		case Concept::TYPE_POSITIVE_ATOMIC:
@@ -116,20 +108,20 @@ const Concept* ConceptManager::makeNegation(const Concept* pConcept)
 			}
 			return it->second;
 		}
-		case Concept::TYPE_EXISTENTIAL:
+		case Concept::TYPE_EXISTENTIAL_RESTRICTION:
 		{
 			SymbolConceptPair scp(pConcept->getRole(), makeNegation(pConcept->getQualificationConcept()));
 			SymbolConceptPairToConceptMap::iterator it = mUniversalConcepts.find(scp);
 			if (it == mUniversalConcepts.end())
-				it = mUniversalConcepts.insert(it, SymbolConceptPairToConceptMap::value_type(scp, new Concept(Concept::TYPE_UNIVERSAL, scp.first, scp.second)));
+				it = mUniversalConcepts.insert(it, SymbolConceptPairToConceptMap::value_type(scp, new Concept(Concept::TYPE_UNIVERSAL_RESTRICTION, scp.first, scp.second)));
 			return it->second;
 		}
-		case Concept::TYPE_UNIVERSAL:
+		case Concept::TYPE_UNIVERSAL_RESTRICTION:
 		{
 			SymbolConceptPair scp(pConcept->getRole(), makeNegation(pConcept->getQualificationConcept()));
 			SymbolConceptPairToConceptMap::iterator it = mExistentialConcepts.find(scp);
 			if (it == mExistentialConcepts.end())
-				it = mExistentialConcepts.insert(it, SymbolConceptPairToConceptMap::value_type(scp, new Concept(Concept::TYPE_EXISTENTIAL, scp.first, scp.second)));
+				it = mExistentialConcepts.insert(it, SymbolConceptPairToConceptMap::value_type(scp, new Concept(Concept::TYPE_EXISTENTIAL_RESTRICTION, scp.first, scp.second)));
 			return it->second;
 		}
 		default:
@@ -138,7 +130,22 @@ const Concept* ConceptManager::makeNegation(const Concept* pConcept)
 	return 0;
 }
 
-void ConceptManager::clearConcepts()
+const Concept* ConceptManager::getAtomicConcept(bool isPositive, Symbol symbol) const
+{
+	SymbolToConceptMap* pSymbolToConceptMap;
+	
+	if (isPositive)
+		pSymbolToConceptMap = &mPositiveAtomicConcepts;
+	else
+		pSymbolToConceptMap = &mNegativeAtomicConcepts;
+
+	SymbolToConceptMap::iterator it = pSymbolToConceptMap->find(symbol);
+	if (it == pSymbolToConceptMap->end())
+		it = pSymbolToConceptMap->insert(it, SymbolToConceptMap::value_type(symbol, new Concept(isPositive, symbol)));
+	return it->second;
+}
+
+void ConceptManager::clearCache() const
 {
 	deleteAll(mPositiveAtomicConcepts);
 	deleteAll(mNegativeAtomicConcepts);
@@ -148,15 +155,14 @@ void ConceptManager::clearConcepts()
 	deleteAll(mUniversalConcepts);
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
-const Concept* ConceptManager::parseConcept(std::istream& source)
+const Concept* ConceptManager::parseConcept(std::istream& source) const
 {
 	return parseSubsumption(source);
 }
 
-const Concept* ConceptManager::parseSubsumption(std::istream& source)
+const Concept* ConceptManager::parseSubsumption(std::istream& source) const
 {
 	const Concept* pC1 = parseDisjunction(source);
 	if (mTokenType == T_IS)
@@ -177,7 +183,7 @@ const Concept* ConceptManager::parseSubsumption(std::istream& source)
 	return pC1;
 }
 
-const Concept* ConceptManager::parseDisjunction(std::istream& source)
+const Concept* ConceptManager::parseDisjunction(std::istream& source) const
 {
 	const Concept* pC1 = parseConjunction(source);
 	if (mTokenType == T_OR)
@@ -197,7 +203,7 @@ const Concept* ConceptManager::parseDisjunction(std::istream& source)
 	return pC1;
 }
 
-const Concept* ConceptManager::parseConjunction(std::istream& source)
+const Concept* ConceptManager::parseConjunction(std::istream& source) const
 {
 	const Concept* pC1 = parseSimpleConcept(source);
 	if (mTokenType == T_AND)
@@ -218,7 +224,7 @@ const Concept* ConceptManager::parseConjunction(std::istream& source)
 	return pC1;
 }
 
-const Concept* ConceptManager::parseSimpleConcept(std::istream& source)
+const Concept* ConceptManager::parseSimpleConcept(std::istream& source) const
 {
 	switch (mTokenType)
 	{
@@ -240,7 +246,7 @@ const Concept* ConceptManager::parseSimpleConcept(std::istream& source)
 				SymbolConceptPairToConceptMap::iterator it = mExistentialConcepts.find(SymbolConceptPair(s, pConcept));
 				if (it == mExistentialConcepts.end())
 					it = mExistentialConcepts.insert(it, SymbolConceptPairToConceptMap::value_type(
-					SymbolConceptPair(s, pConcept), new Concept(Concept::TYPE_EXISTENTIAL, s, pConcept)));
+					SymbolConceptPair(s, pConcept), new Concept(Concept::TYPE_EXISTENTIAL_RESTRICTION, s, pConcept)));
 				return it->second;
 			} else if (mTokenType == T_ONLY)
 			{
@@ -249,15 +255,10 @@ const Concept* ConceptManager::parseSimpleConcept(std::istream& source)
 				SymbolConceptPairToConceptMap::iterator it = mUniversalConcepts.find(SymbolConceptPair(s, pConcept));
 				if (it == mUniversalConcepts.end())
 					it = mUniversalConcepts.insert(it, SymbolConceptPairToConceptMap::value_type(
-					SymbolConceptPair(s, pConcept), new Concept(Concept::TYPE_UNIVERSAL, s, pConcept)));
+					SymbolConceptPair(s, pConcept), new Concept(Concept::TYPE_UNIVERSAL_RESTRICTION, s, pConcept)));
 				return it->second;
 			} else
-			{ // Positive atomic element
-				SymbolToConceptMap::iterator it = mPositiveAtomicConcepts.find(s);
-				if (it == mPositiveAtomicConcepts.end())
-					it = mPositiveAtomicConcepts.insert(it, SymbolToConceptMap::value_type(s, new Concept(true, s)));
-				return it->second;
-			}
+				return getAtomicConcept(true, s);
 		}
 		case T_NOT: // Negation
 			nextToken(source);
@@ -279,7 +280,7 @@ const Concept* ConceptManager::parseSimpleConcept(std::istream& source)
 	return 0;
 }
 
-void ConceptManager::nextToken(std::istream& source)
+void ConceptManager::nextToken(std::istream& source) const
 {
 	mTokenString = "";
 
@@ -443,7 +444,7 @@ void ConceptManager::nextToken(std::istream& source)
 				mTokenType = T_INVALID;
 				scanElement(source);
 				if (mTokenType != T_ELEMENT)
-					throw Exception("Invalid character: " + string(&mCurrChar, 1));
+					throw Exception("Invalid concept string (invalid character: \'" + string(&mCurrChar, 1) + "\')");
 				return;
 		}
 		getNextChar(source);
@@ -451,7 +452,7 @@ void ConceptManager::nextToken(std::istream& source)
 	mTokenType = T_EOS;
 }
 
-void ConceptManager::scanElement(std::istream& source)
+void ConceptManager::scanElement(std::istream& source) const
 {
 	if (!((mCurrChar >= 'a' && mCurrChar <= 'z') || (mCurrChar >= 'A' && mCurrChar <= 'Z') || mCurrChar == '_' || (mCurrChar >= '0' && mCurrChar <= '9')))
 		return;
@@ -464,9 +465,9 @@ void ConceptManager::scanElement(std::istream& source)
 	return;
 }
 
-void ConceptManager::throwSyntaxException()
+void ConceptManager::throwSyntaxException() const
 {
-	throw Exception("Invalid concept (token \"" + mTokenString + "\" found)");
+	throw Exception("Invalid concept string (token \"" + mTokenString + "\" found)");
 }
 
 }
