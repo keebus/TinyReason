@@ -201,7 +201,63 @@ void ConceptManager::parseComplexConceptList(std::istream& source, vector<const 
 
 const Concept* ConceptManager::parseSingleComplexConcept(std::istream& source) const
 {
-	return parseSubsumption(source);
+	return parseEquivalence(source);
+}
+
+const Concept* ConceptManager::parseEquivalence(std::istream& source) const
+{
+	const Concept* pC1 = parseSubsumption(source);
+	if (mTokenType == T_IS)
+	{
+		nextToken(source);
+		const Concept* pC2 = parseEquivalence(source);
+		// Simplifications
+		if (pC1 == Concept::getTopConcept())
+			return pC2;
+		if (pC2 == Concept::getTopConcept())
+			return pC1;
+		const Concept* pNegatedC1 = makeNegation(pC1);
+		const Concept* pNegatedC2 = makeNegation(pC2);
+		if (pC1 == Concept::getBottomConcept())
+			return pNegatedC1;
+		if (pC2 == Concept::getBottomConcept())
+			return pNegatedC2;
+
+		// Ok can't simplify. This is a disjunction of conjunctions (both true or both false)
+		const Concept* pBothTrueConcept, *pBothFalseConcept;
+
+		ConceptPair btcp(pC1, pC2);
+		ConceptPairToConceptMap::iterator it = mConjunctionConcepts.find(btcp);
+		if (it == mConjunctionConcepts.end())
+		{
+			it = mConjunctionConcepts.find(ConceptPair(btcp.second, btcp.first));
+			if (it == mConjunctionConcepts.end())
+				it = mConjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(btcp, new Concept(Concept::TYPE_CONJUNCTION, btcp.first, btcp.second)));
+		}
+		pBothTrueConcept = it->second;
+
+		ConceptPair bfcp(pNegatedC1, pNegatedC2);
+		it = mConjunctionConcepts.find(bfcp);
+		if (it == mConjunctionConcepts.end())
+		{
+			it = mConjunctionConcepts.find(ConceptPair(bfcp.second, bfcp.first));
+			if (it == mConjunctionConcepts.end())
+				it = mConjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(bfcp, new Concept(Concept::TYPE_CONJUNCTION, bfcp.first, bfcp.second)));
+		}
+		pBothFalseConcept = it->second;
+
+		// Then make cojunction
+		ConceptPair conjCP(pBothTrueConcept, pBothFalseConcept);
+		it = mDisjunctionConcepts.find(conjCP);
+		if (it == mDisjunctionConcepts.end())
+		{
+			it = mDisjunctionConcepts.find(ConceptPair(conjCP.second, conjCP.first));
+			if (it == mDisjunctionConcepts.end())
+				it = mDisjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(conjCP, new Concept(Concept::TYPE_DISJUNCTION, conjCP.first, conjCP.second)));
+		}
+		return it->second;
+	}
+	return pC1;
 }
 
 const Concept* ConceptManager::parseSubsumption(std::istream& source) const
@@ -253,9 +309,9 @@ const Concept* ConceptManager::parseDisjunction(std::istream& source) const
 		ConceptPairToConceptMap::iterator it = mDisjunctionConcepts.find(cp);
 		if (it == mDisjunctionConcepts.end())
 		{
-			it = mDisjunctionConcepts.find(ConceptPair(pC2, pC1));
+			it = mDisjunctionConcepts.find(ConceptPair(cp.second, cp.first));
 			if (it == mDisjunctionConcepts.end())
-				it = mDisjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(cp, new Concept(Concept::TYPE_DISJUNCTION, pC1, pC2)));
+				it = mDisjunctionConcepts.insert(it, ConceptPairToConceptMap::value_type(cp, new Concept(Concept::TYPE_DISJUNCTION, cp.first, cp.second)));
 		}
 		return it->second;
 	}
@@ -567,6 +623,11 @@ void ConceptManager::nextToken(std::istream & source) const
 					{
 						addAndGetNextChar(source);
 						mTokenType = T_ISA;
+						scanElement(source);
+						return;
+					} else
+					{
+						mTokenType = T_IS;
 						scanElement(source);
 						return;
 					}

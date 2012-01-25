@@ -61,6 +61,7 @@ private:
 		T_LPAR,
 		T_RPAR,
 		T_NOTHING,
+		T_IS,
 		T_ISA,
 		T_SEMICOLON
 	};
@@ -68,6 +69,7 @@ private:
 	void parseComplexConceptList(std::istream& source, std::vector<const Concept*>& concepts) const;
 	const Concept* parseSingleComplexConcept(std::istream& source) const;
 
+	const Concept* parseEquivalence(std::istream& source) const;
 	const Concept* parseSubsumption(std::istream& source) const;
 	const Concept* parseDisjunction(std::istream& source) const;
 	const Concept* parseConjunction(std::istream& source) const;

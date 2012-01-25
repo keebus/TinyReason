@@ -101,11 +101,12 @@ private:
 		std::vector<const ExpandableConcept*> mExpandableConceptQueue;
 	};
 
-	class Logger {
-		void log(const CompletionTree* pCP, const std::string& message) const;
-	private:
-		std::map<const CompletionTree* pCP, size_t> mCPtoID;
-	};
+//	class Logger {
+//		void log(const CompletionTree* pCP, const std::string& message) const;
+//	private:
+//		std::map<const CompletionTree* pCP, size_t> mCPtoID;
+//		std::map<std::pair<const CompletionTree*, 
+//	};
 
 	const SymbolDictionary* mpSymbolDictionary;
 	const ConceptManager* mpConceptManager;

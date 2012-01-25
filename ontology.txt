@@ -1,3 +1,6 @@
-Person isa (Man or Woman) and not (Man and Woman);
-Man or Woman isa Person;
-Mother isa Woman and hasChild some Person;
+not (Male and Female);
+Man is Person and Male;
+Woman is Person and Female;
+Parent is hasChild some Person;
+Mother is Woman and Parent;
+Father is Man and Parent;
