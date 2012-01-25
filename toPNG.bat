@@ -1,0 +1,1 @@
+cat example.dot | dot -Tpng > example.png
