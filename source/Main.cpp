@@ -105,10 +105,15 @@ int main(int argc, char** argv)
 		r.setTransitiveRoles(transitiveRoles);
 		if (showParsedResult)
 		{
-			cout << "Transitive roles:" << endl << "\t";
-			for (size_t i = 0; i < transitiveRoles.size(); ++i)
-				cout << sd.toName(transitiveRoles[i]) << ((i == transitiveRoles.size() - 1) ? "\n" : " ,");
+			if (!transitiveRoles.empty())
+			{
+				cout << "Transitive roles:" << endl << "\t";
+				for (size_t i = 0; i < transitiveRoles.size(); ++i)
+					cout << sd.toName(transitiveRoles[i]) << ((i == transitiveRoles.size() - 1) ? "\n" : " ,");
+			} else
+				cout << "NO transitive roles." << endl;
 		}
+
 		Model example;
 		if (r.isSatisfiable(concepts, &example, verbose))
 		{

@@ -37,6 +37,8 @@ namespace tinyreason
 {
 
 class Reasoner {
+	friend class CompletionTree;
+
 public:
 	Reasoner(const SymbolDictionary* pSymbolDictionary, const ConceptManager* pConceptManager);
 	~Reasoner();
@@ -64,17 +66,17 @@ private:
 		typedef RoleAccessibilityMap::iterator RelationMapIterator;
 		typedef std::pair<RelationMapIterator, RelationMapIterator> RelationMapRange;
 
+		size_t ID;
 		const Node* pParentNode;
-
 		std::set<Symbol> positiveAtomicConcepts;
 		std::set<Symbol> negativeAtomicConcepts;
 		std::set<const Concept*> complexConcepts;
 		std::multimap<Symbol, Node*> roleAccessibilities;
 		const Node* pBlockingNode;
-		size_t mID;
+
 		// When a new node is created, it automatically is blocked by its parent
 		// because its (empty) label is contained within its parent.
-		Node(const Node * pParent) : pParentNode(pParent), pBlockingNode(pParent) { }
+		Node(size_t id, const Node * pParent) : ID(id), pParentNode(pParent), pBlockingNode(pParent) { }
 		bool isBlocked() const {
 			return pBlockingNode;
 		}
@@ -105,15 +107,21 @@ private:
 
 	class CompletionTree {
 	public:
-		CompletionTree(const Logger* pLogger);
+		CompletionTree(const Reasoner* pReasoner, const Logger* pLogger);
 		~CompletionTree();
+		size_t getID() const {
+			return mID;
+		}
 		Node * createNode(Node* pParent);
 		void addExpandableConcept(const ExpandableConcept* pExpandableConcept);
-		ExpansionResult expand(const Reasoner* pReasoner, CompletionTree*& pNewCompletionTree);
-		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode) const;
+		ExpansionResult expand(CompletionTree*& pNewCompletionTree);
+		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode,const std::list<const ExpandableConcept*>& insertionList) const;
 		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
 	private:
+		const Reasoner* mpReasoner;
+		size_t mID;
 		const Logger* mpLogger;
+
 		typedef std::set<Node*> NodeSet;
 		NodeSet mNodes;
 		std::vector<const ExpandableConcept*> mExpandableConceptQueue;
@@ -128,17 +136,11 @@ private:
 		void log(const CompletionTree* pCP, const Node* pNode, const Concept* pConcept, const std::string& message) const;
 		std::string getNodeStrID(const CompletionTree* pCP, const Node* pNode) const;
 	private:
-		typedef std::map<const CompletionTree*, std::pair<size_t, size_t > > CompletionTreeInfoMap;
-		typedef std::map<std::pair<const CompletionTree*, const Node*>, size_t> CompletionTreeNodeInfoMap;
-		std::pair<size_t, size_t> getCPInfo(const CompletionTree* pCP) const;
-		size_t getNodeID(const CompletionTree* pCP, const Node* pNode) const;
 		std::ostream& mOutStream;
 		const SymbolDictionary* mpSymbolDictionary;
-		mutable size_t mCPCounter;
-		mutable CompletionTreeInfoMap mCPtoIDInfo;
-		mutable CompletionTreeNodeInfoMap mCPNodeToID;
 	};
 
+	mutable size_t mCompletionTreeIDCounter;
 	const SymbolDictionary* mpSymbolDictionary;
 	const ConceptManager* mpConceptManager;
 	std::vector<const Concept*> mOntology;
