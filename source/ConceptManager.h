@@ -42,8 +42,8 @@ public:
 	const Concept* parseConcept(const std::string& str) const;
 	const Concept* parseConcept(std::istream& source) const;
 
-	void parseConcepts(const std::string& str, std::vector<const Concept*>& concepts) const;
-	void parseConcepts(std::istream& source, std::vector<const Concept*>& concepts) const;
+	void parseAssertions(const std::string& str, std::vector<const Concept*>& concepts, std::vector<Symbol>& transitiveRoles) const;
+	void parseAssertions(std::istream& source, std::vector<const Concept*>& concepts, std::vector<Symbol>& transitiveRoles) const;
 
 	const Concept* makeNegation(const Concept* pConcept) const;
 	const Concept* getAtomicConcept(bool isPositive, Symbol symbol) const;
@@ -67,10 +67,12 @@ private:
 		T_NOTHING,
 		T_IS,
 		T_ISA,
-		T_SEMICOLON
+		T_SEMICOLON,
+		T_TRANS,
 	};
-	
-	void parseComplexConceptList(std::istream& source, std::vector<const Concept*>& concepts) const;
+
+	void parseAssertionList(std::istream& source, std::vector<const Concept*>& concepts, std::vector<Symbol>& transitiveRoles) const;
+	void parseTransitiveRoleAssertion(std::istream& source, std::vector<Symbol>& transitiveRoles) const;
 	const Concept* parseSingleComplexConcept(std::istream& source) const;
 
 	const Concept* parseEquivalence(std::istream& source) const;

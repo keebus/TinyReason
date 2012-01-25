@@ -34,11 +34,11 @@ using namespace std;
 namespace tinyreason
 {
 
-void Instance::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream) const
+void Instance::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
 {
 	outStream << (size_t)this << "[label=\"";
 	for (std::set<const Concept*>::const_iterator it = mConcepts.begin(); it != mConcepts.end(); ++it)
-		if ((*it)->isAtomic())
+		if (showComplexConcepts or (*it)->isAtomic())
 			outStream << (*it)->toString(symbolDictionary) << "\\n";
 	outStream << "\"];";
 
@@ -67,12 +67,12 @@ void Model::clear()
 	deleteAll(mInstances);
 }
 
-void Model::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream) const
+void Model::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
 {
 	outStream << "digraph {rankdir=TB;node[shape=record];";
 
 	for (size_t i = 0; i < mInstances.size(); ++i)
-		mInstances[i]->dumpToDOTFile(symbolDictionary, outStream);
+		mInstances[i]->dumpToDOTFile(symbolDictionary, outStream, showComplexConcepts);
 
 	outStream << "}";
 }

@@ -42,11 +42,11 @@ int main(int argc, char** argv)
 	{
 		if (argc < 4)
 		{
-			cout << "Usage: saltr <options|-> (<ontology-file-name|-) <concepts-to-test-satisfiability>\n\noptions:\n\tv: verbose, shows a log of the precedure of decision;\n\tp: shows parsed concepts (both from ontology and user concept);" << endl;
+			cout << "Usage: saltr <options|-> (<ontology-file-name|-) <concepts-to-test-satisfiability>\n\noptions:\n\tv: verbose, shows a log of the precedure of decision;\n\tp: shows parsed concepts (both from ontology and user concept);\n\tc: prints complex concepts in the output model too;" << endl;
 			return -1;
 		}
 
-		bool verbose = false, showParsedResult = false;
+		bool verbose = false, showParsedResult = false, showComplexConcepts = false;
 		string stroptions(argv[1]);
 		for (size_t i = 0; i < stroptions.size(); ++i)
 		{
@@ -60,6 +60,9 @@ int main(int argc, char** argv)
 				case 'p': // Shows parse result
 					showParsedResult = true;
 					break;
+				case 'c': // Shows complex concepts
+					showComplexConcepts = true;
+					break;
 			}
 		}
 
@@ -67,12 +70,14 @@ int main(int argc, char** argv)
 		ConceptManager cp(&sd);
 		Reasoner r(&sd, &cp);
 
+		vector<Symbol> transitiveRoles;
+
 		if (argv[2][0] != '-')
 		{
 			vector<const Concept*> ontologyConcepts;
 			ifstream f(argv[2]);
-			cp.parseConcepts(f, ontologyConcepts);
-			r.setOntology(ontologyConcepts);
+			cp.parseAssertions(f, ontologyConcepts, transitiveRoles);
+			r.setOntologyConcepts(ontologyConcepts);
 			if (showParsedResult)
 			{
 				cout << "Ontology concepts (optimized and normalized):" << endl;
@@ -88,7 +93,7 @@ int main(int argc, char** argv)
 		vector<const Concept*> concepts;
 		if (!conceptString.empty())
 		{
-			cp.parseConcepts(conceptString, concepts);
+			cp.parseAssertions(conceptString, concepts, transitiveRoles);
 			if (showParsedResult)
 			{
 				cout << "Parsed concepts: " << endl;
@@ -97,11 +102,18 @@ int main(int argc, char** argv)
 			}
 		}
 
+		r.setTransitiveRoles(transitiveRoles);
+		if (showParsedResult)
+		{
+			cout << "Transitive roles:" << endl << "\t";
+			for (size_t i = 0; i < transitiveRoles.size(); ++i)
+				cout << sd.toName(transitiveRoles[i]) << ((i == transitiveRoles.size() - 1) ? "\n" : " ,");
+		}
 		Model example;
 		if (r.isSatisfiable(concepts, &example, verbose))
 		{
 			ofstream outFile("example.dot");
-			example.dumpToDOTFile(sd, outFile);
+			example.dumpToDOTFile(sd, outFile, showComplexConcepts);
 			cout << "RESULT: Conjunction of concepts is satisfiable! (example dumped to example.dot)" << endl;
 
 		} else

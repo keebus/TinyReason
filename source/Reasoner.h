@@ -40,7 +40,16 @@ class Reasoner {
 public:
 	Reasoner(const SymbolDictionary* pSymbolDictionary, const ConceptManager* pConceptManager);
 	~Reasoner();
-	void setOntology(const std::vector<const Concept*>& ontology);
+	const std::vector<const Concept*> getOntologyConcepts() const {
+		return mOntology;
+	}
+	bool isTransitive(Symbol role) const {
+		return mTransitiveRolesSet.find(role) != mTransitiveRolesSet.end();
+	}
+	void setOntologyConcepts(const std::vector<const Concept*>& ontology);
+	void setTransitiveRole(Symbol role);
+	void setTransitiveRoles(const std::vector<Symbol>& transitiveRoles);
+
 	bool isSatisfiable(const Concept* pConcept, Model* pModel = 0, bool verbose = false) const;
 	bool isSatisfiable(const std::vector<const Concept*>& concepts, Model* pModel = 0, bool verbose = false) const;
 private:
@@ -100,7 +109,7 @@ private:
 		~CompletionTree();
 		Node * createNode(Node* pParent);
 		void addExpandableConcept(const ExpandableConcept* pExpandableConcept);
-		ExpansionResult expand(const std::vector<const Concept*>& ontology, CompletionTree*& pNewCompletionTree);
+		ExpansionResult expand(const Reasoner* pReasoner, CompletionTree*& pNewCompletionTree);
 		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode) const;
 		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
 	private:
@@ -133,6 +142,7 @@ private:
 	const SymbolDictionary* mpSymbolDictionary;
 	const ConceptManager* mpConceptManager;
 	std::vector<const Concept*> mOntology;
+	std::set<Symbol> mTransitiveRolesSet;
 };
 
 }

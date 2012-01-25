@@ -44,7 +44,7 @@ public:
 	void addRoleAccessibility(Symbol role, const Instance* pInstance) {
 		mRoleAccessibilities.insert(std::pair<Symbol, const Instance*> (role, pInstance));
 	}
-	void dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream) const;
+	void dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 private:
 	std::set<const Concept*> mConcepts;
 	std::multimap<Symbol, const Instance*> mRoleAccessibilities;
@@ -56,7 +56,7 @@ public:
 	~Model();
 	Instance* createInstance();
 	void clear();
-	void dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream) const;
+	void dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 private:
 	std::vector<Instance*> mInstances;
 };

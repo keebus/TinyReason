@@ -59,19 +59,19 @@ const Concept* ConceptManager::parseConcept(std::istream& source) const
 	return pConcept;
 }
 
-void ConceptManager::parseConcepts(const std::string& str, std::vector<const Concept*>& concepts) const
+void ConceptManager::parseAssertions(const std::string& str, std::vector<const Concept*>& concepts, std::vector<Symbol>& transitiveRoles) const
 {
 	istringstream source(str);
-	return parseConcepts(source, concepts);
+	return parseAssertions(source, concepts, transitiveRoles);
 }
 
-void ConceptManager::parseConcepts(std::istream& source, std::vector<const Concept*>& concepts) const
+void ConceptManager::parseAssertions(std::istream& source, std::vector<const Concept*>& concepts, std::vector<Symbol>& transitiveRoles) const
 {
 	getNextChar(source);
 	mTokenType = T_EOS;
 	nextToken(source);
 
-	parseComplexConceptList(source, concepts);
+	parseAssertionList(source, concepts, transitiveRoles);
 
 	if (mTokenType != T_EOS)
 		throwSyntaxException();
@@ -181,16 +181,9 @@ void ConceptManager::clearCache() const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void ConceptManager::parseComplexConceptList(std::istream& source, vector<const Concept*>& concepts) const
+void ConceptManager::parseAssertionList(std::istream& source, vector<const Concept*>& concepts, std::vector<Symbol>& transitiveRoles) const
 {
-	while (mTokenType == T_SEMICOLON)
-		nextToken(source);
-	if (mTokenType == T_EOS)
-		return;
-	const Concept * pConcept = parseSingleComplexConcept(source);
-	concepts.push_back(pConcept);
-
-	while (true)
+	do
 	{
 		while (mTokenType == T_SEMICOLON)
 			nextToken(source);
@@ -198,9 +191,30 @@ void ConceptManager::parseComplexConceptList(std::istream& source, vector<const 
 		if (mTokenType == T_EOS)
 			return;
 
-		pConcept = parseSingleComplexConcept(source);
-		concepts.push_back(pConcept);
-	}
+		if (mTokenType == T_TRANS) // it's a transitive role assertion
+			parseTransitiveRoleAssertion(source, transitiveRoles);
+		else
+			concepts.push_back(parseSingleComplexConcept(source));
+	} while (true);
+}
+
+void ConceptManager::parseTransitiveRoleAssertion(std::istream& source, std::vector<Symbol>& transitiveRoles) const
+{
+	if (mTokenType != T_TRANS)
+		throwSyntaxException();
+	nextToken(source);
+	do
+	{
+		if (mTokenType != T_ELEMENT)
+			throwSyntaxException();
+		transitiveRoles.push_back(mpSymbolDictionary->get(mTokenString));
+		nextToken(source);
+		if (mTokenType == T_SEMICOLON)
+		{
+			nextToken(source);
+			break;
+		}
+	} while (true);
 }
 
 const Concept* ConceptManager::parseSingleComplexConcept(std::istream& source) const
@@ -634,6 +648,33 @@ void ConceptManager::nextToken(std::istream & source) const
 						mTokenType = T_IS;
 						scanElement(source);
 						return;
+					}
+				}
+				mTokenType = T_ELEMENT;
+				scanElement(source);
+				return;
+			}
+
+			case 't':
+			{
+				addAndGetNextChar(source);
+				if (mCurrChar == 'r')
+				{
+					addAndGetNextChar(source);
+					if (mCurrChar == 'a')
+					{
+						addAndGetNextChar(source);
+						if (mCurrChar == 'n')
+						{
+							addAndGetNextChar(source);
+							if (mCurrChar == 's')
+							{
+								addAndGetNextChar(source);
+								mTokenType = T_TRANS;
+								scanElement(source);
+								return;
+							}
+						}
 					}
 				}
 				mTokenType = T_ELEMENT;

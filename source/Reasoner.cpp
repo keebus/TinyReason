@@ -40,9 +40,20 @@ mpConceptManager(pConceptManager) { }
 
 Reasoner::~Reasoner() { }
 
-void Reasoner::setOntology(const std::vector<const Concept*>& ontology)
+void Reasoner::setOntologyConcepts(const std::vector<const Concept*>& ontology)
 {
 	mOntology = ontology;
+}
+
+void Reasoner::setTransitiveRole(Symbol role)
+{
+	mTransitiveRolesSet.insert(role);
+}
+
+void Reasoner::setTransitiveRoles(const std::vector<Symbol>& transitiveRoles)
+{
+	for (size_t i = 0; i < transitiveRoles.size(); ++i)
+		mTransitiveRolesSet.insert(transitiveRoles[i]);
 }
 
 bool Reasoner::isSatisfiable(const Concept* pConcept, Model* pModel, bool verbose) const
@@ -87,7 +98,7 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 			pLogger->log(pCompletionTree, "this Completion Tree chosen to be expanded.");
 		// Let the completion tree expand
 		CompletionTree* pNewCompletionTree = 0;
-		ExpansionResult result = pCompletionTree->expand(mOntology, pNewCompletionTree);
+		ExpansionResult result = pCompletionTree->expand(this, pNewCompletionTree);
 		// If the expansion algorithm created a new completion tree, add it to our active set
 		if (pNewCompletionTree)
 			completionTrees.push_back(pNewCompletionTree);
@@ -316,7 +327,7 @@ void Reasoner::CompletionTree::addExpandableConcept(const ExpandableConcept* pEx
 	push_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
 }
 
-Reasoner::ExpansionResult Reasoner::CompletionTree::expand(const std::vector<const Concept*>& ontology, CompletionTree*& pNewCompletionTree)
+Reasoner::ExpansionResult Reasoner::CompletionTree::expand(const Reasoner* pReasoner, CompletionTree*& pNewCompletionTree)
 {
 	list<const ExpandableConcept*> insertionList;
 	ExpansionResult result = EXPANSION_RESULT_NOT_POSSIBLE;
@@ -421,9 +432,9 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(const std::vector<con
 						// Then create a new world that contains the qualification concept
 						Node* pNode = createNode(pEC->pNode);
 						// Add all ontology concepts to it
-						for (size_t i = 0; i < ontology.size(); ++i)
-							if (pNode->add(ontology[i], mpLogger, this))
-								insertionList.push_back(new ExpandableConcept(pNode, ontology[i]));
+						for (size_t i = 0; i < pReasoner->getOntologyConcepts().size(); ++i)
+							if (pNode->add(pReasoner->getOntologyConcepts()[i], mpLogger, this))
+								insertionList.push_back(new ExpandableConcept(pNode, pReasoner->getOntologyConcepts()[i]));
 						pEC->pNode->roleAccessibilities.insert(SymbolNodePair(role, pNode));
 						if (pNode->add(pQualificationConcept, mpLogger, this))
 							insertionList.push_back(new ExpandableConcept(pNode, pQualificationConcept));
@@ -440,30 +451,38 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(const std::vector<con
 				{
 					Symbol role = pEC->pConcept->getRole();
 					const Concept* pQualificationConcept = pEC->pConcept->getQualificationConcept();
-					// First get the range of nodes reachable by this one through thic concept role
+					// First get the range of nodes reachable by this one through this concept role
 					Node::RelationMapRange range = pEC->pNode->roleAccessibilities.equal_range(role);
-					bool conceptNotFound = false;
 					for (Node::RelationMapIterator it = range.first; it != range.second; ++it)
 					{
 						if (it->second->add(pQualificationConcept, mpLogger, this))
 						{
 							insertionList.push_back(new ExpandableConcept(it->second, pQualificationConcept));
-							conceptNotFound = true;
+							result = EXPANSION_RESULT_OK;
 							if (mpLogger)
 								mpLogger->log(this, it->second, pQualificationConcept, "adding this qualification concept to this existing node.");
 						}
+						// This applies ONLY if this role is transitive.
+						if (pReasoner->isTransitive(role))
+						{
+							if (it->second->add(pEC->pConcept, mpLogger, this))
+							{
+								insertionList.push_back(new ExpandableConcept(it->second, pEC->pConcept));
+								result = EXPANSION_RESULT_OK;
+								if (mpLogger)
+									mpLogger->log(this, it->second, pQualificationConcept, "copying the whole concept to this existing node for transitivity.");
+							}
+						}
 					}
-					if (conceptNotFound)
-					{
-						result = EXPANSION_RESULT_OK;
+					if (result == EXPANSION_RESULT_OK)
 						skipThisExpandableConcept = false;
-					} else
+					else
 					{
-						result = EXPANSION_RESULT_NOT_POSSIBLE;
 						if (mpLogger)
 							mpLogger->log(this, pEC->pNode, pEC->pConcept, "impossible to expand as no reachable node does not contain qualification concept.");
 					}
 					break;
+
 				}
 
 				default:

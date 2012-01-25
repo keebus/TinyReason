@@ -22,8 +22,9 @@ Compiling
 	You could even use build.bat script file to compile for Windows or build.sh
 	to compile for the other platforms.
 
-	The source code has no dependecies (apart of stdlibc++) and can be compiled
-	with any compiler, but you will have to make your own makefile for that.
+	The source code has no dependecies (apart from stdlibc++) and can be
+	compiled with any compiler, but you will have to make your own makefile for
+	that.
 
 DL Syntax
 =========
@@ -32,9 +33,9 @@ DL Syntax
 	* Any string like (a-zA-Z_0-9)+ is an Atomic Concept thus a Concept.
 	* If A is a concept, then "not A" is a concept.
 	* If A and B are concepts, then "A and B", "A or B" are concepts.
-	* If A and B are concepts, then "A isa B" is a concept that means "B subsumes
-		A" or "if A then B" and "A is B" is a concept that means "A subsumes B
-		and B subsumes A" or "A if and only if B".
+	* If A and B are concepts, then "A isa B" is a concept that means "B
+		subsumes A" or "if A then B" and "A is B" is a concept that means "A
+		subsumes B and B subsumes A" or "A if and only if B".
 	* "R something" where R is the name of a role form (a-zA-Z_0-9)+ stands for
 		"<there exists>R.T" in common DL syntax where T is the top concept.
 	* If C is a concept and R is the name of a role, "R some C" means
@@ -44,7 +45,7 @@ DL Syntax
 	* If A is a concept, then "(A)" is a concept.
 	
 	Examples:
-		Man and Woman isa nothing; 		(or simply "not(Man and Woman)")
+		Man and Woman isa nothing;             (or simply "not(Man and Woman)")
 		Person is Man or Woman;
 		Woman is Person and Female;
 		Man is Person and Male;
@@ -61,6 +62,7 @@ Usage
 			operations done.
 		p: parser output, will print the result of the parsing of the ontology
 			concepts and the given user concept.
+		c: dumps non atomic concepts too into the example model.
 		-: no option (mandatory if you specify no option).
 	
 	The ontology file is optional. It must contain a list of concepts separated
