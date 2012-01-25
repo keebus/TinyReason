@@ -1,25 +1,29 @@
 /*******************************************************************************
- * Simple ALC Reasoner                                                         *
- * Copyright (c) 2012 Canio Massimo Tristano <massimo.tristano@gmail.com>      *
+ * Tiny Reason                                                                 *
+ * Copyright (c) 2012, Canio Massimo Tristano <massimo.tristano@gmail.com>     *
+ * All rights reserved.                                                        *
  *                                                                             *
- * This software is provided 'as-is', without any express or implied           *
- * warranty. In no event will the authors be held liable for any damages       *
- * arising from the use of this software.                                      *
- *	                                                                            *
- * Permission is granted to anyone to use this software for any purpose,       *
- * including commercial applications, and to alter it and redistribute it      *
- * freely, subject to the following restrictions:                              *
+ * Redistribution and use in source and binary forms, with or without          *
+ * modification, are permitted provided that the following conditions are met: *
+ *     * Redistributions of source code must retain the above copyright        *
+ *       notice, this list of conditions and the following disclaimer.         *
+ *     * Redistributions in binary form must reproduce the above copyright     *
+ *       notice, this list of conditions and the following disclaimer in the   *
+ *       documentation and/or other materials provided with the distribution.  *
+ *     * Neither the name of the <organization> nor the                        *
+ *       names of its contributors may be used to endorse or promote products  *
+ *       derived from this software without specific prior written permission. *
  *                                                                             *
- *  1. The origin of this software must not be misrepresented; you must not    *
- *  claim that you wrote the original software. If you use this software       *
- *  in a product, an acknowledgment in the product documentation would be      *
- *  appreciated but is not required.                                           *
- *                                                                             *
- *  2. Altered source versions must be plainly marked as such, and must not be *
- *  misrepresented as being the original software.                             *
- *                                                                             *
- * 3. This notice may not be removed or altered from any source                *
- * distribution.                                                               *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" *
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE   *
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE  *
+ * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY      *
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES  *
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;*
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND *
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT  *
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF    *
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           *
  ******************************************************************************/
 
 #include "Reasoner.h"
@@ -27,7 +31,7 @@
 
 using namespace std;
 
-namespace salcr
+namespace tinyreason
 {
 
 Reasoner::Reasoner(const SymbolDictionary* pSymbolDictionary, const ConceptManager* pConceptManager) :
@@ -41,26 +45,33 @@ void Reasoner::setOntology(const std::vector<const Concept*>& ontology)
 	mOntology = ontology;
 }
 
-bool Reasoner::isSatisfiable(const Concept* pConcept, Model* pModel) const
+bool Reasoner::isSatisfiable(const Concept* pConcept, Model* pModel, bool verbose) const
 {
 	vector<const Concept*> singleton;
 	singleton.push_back(pConcept);
 	return isSatisfiable(singleton, pModel);
 }
 
-bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model* pModel) const
+bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model* pModel, bool verbose) const
 {
-	CompletionTree* pCompletionTree = new CompletionTree;
+	auto_ptr< Logger> apLogger(new Logger(std::cout, mpSymbolDictionary));
+	const Logger * pLogger = 0;
+	if (verbose)
+		pLogger = apLogger.get();
+
+	CompletionTree* pCompletionTree = new CompletionTree(pLogger);
 	Node* pNode = pCompletionTree->createNode(0);
 
 	// Make a queue containing expandable concepts
-	cout << "Adding ontology concepts to first instance." << endl;
+	if (pLogger)
+		pLogger->log("adding ontology concepts to first instance.");
 	for (size_t i = 0; i < mOntology.size(); ++i)
-		if (pNode->add(mOntology[i]))
+		if (pNode->add(mOntology[i], pLogger, pCompletionTree))
 			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, mOntology[i]));
-	cout << "Adding testing user concept to first instance." << endl;
+	if (pLogger)
+		pLogger->log("adding testing user concept to first instance.");
 	for (size_t i = 0; i < concepts.size(); ++i)
-		if (pNode->add(concepts[i]))
+		if (pNode->add(concepts[i], pLogger, pCompletionTree))
 			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, concepts[i]));
 
 	list<CompletionTree*> completionTrees;
@@ -72,7 +83,8 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 	{
 		// Take the first available Completion Tree in the open list
 		pCompletionTree = completionTrees.front();
-		cout << "Expanding in Completion Tree " << pCompletionTree << endl;
+		if (pLogger)
+			pLogger->log(pCompletionTree, "this Completion Tree chosen to be expanded.");
 		// Let the completion tree expand
 		CompletionTree* pNewCompletionTree = 0;
 		ExpansionResult result = pCompletionTree->expand(mOntology, pNewCompletionTree);
@@ -83,20 +95,23 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 		{
 			case EXPANSION_RESULT_NOT_POSSIBLE:
 				// Yes! We found a model as this completion tree cannot be further expanded.
-				cout << "Expansion could not be possible, model found!" << endl;
+				if (pLogger)
+					pLogger->log(pCompletionTree, "expansion could not be possible, model found!");
 				foundCompleteCompletionTree = true;
 				break;
 
 			case EXPANSION_RESULT_OK:
 				// Ok we expandend the complex concept but we didnt find a clash.
-				cout << "Expansion ok." << endl;
+				if (pLogger)
+					pLogger->log(pCompletionTree, "expansion ok!");
 				break;
 
 			case EXPANSION_RESULT_CLASH:
 				// Clash found in a node of current completion tree.
 				// Delete the incoherent completion tree from our set processing
 				// trees.
-				cout << "Clash found in completion tree " << pCompletionTree << "!" << endl;
+				if (pLogger)
+					pLogger->log(pCompletionTree, "clash found!");
 				delete pCompletionTree;
 				completionTrees.pop_front();
 				break;
@@ -128,7 +143,7 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 }
 ////////////////////////////////////////////////////////////////////////////////
 
-bool Reasoner::Node::add(const Concept * pConcept)
+bool Reasoner::Node::add(const Concept * pConcept, const Logger* pLogger, const CompletionTree * pLoggingCT)
 {
 	// If I'm trying to add TOP, skip it and say "we already have it"
 	if (pConcept == Concept::getTopConcept())
@@ -147,22 +162,37 @@ bool Reasoner::Node::add(const Concept * pConcept)
 			result = complexConcepts.insert(pConcept).second;
 			break;
 	}
+	if (result && pLogger)
+		pLogger->log(pLoggingCT, this, pConcept, "added to this node.");
+	else if (!result && pLogger)
+		pLogger->log(pLoggingCT, this, pConcept, "skipped as already present in this node.");
+
 	// If we did add a new concept to this node, we must chack that whether the blocking
 	// node contains it anyway
 	if (result && pBlockingNode)
 	{
 		if (!pBlockingNode->contains(pConcept))
 		{
+			if (pLogger)
+				pLogger->log(pLoggingCT, this, pConcept, "blocking node of this node does not contain just added concept, thus it can be nomore blocked by it.");
 			// Our blocking node does NOT contain the newly added concept thus we
 			// must look for another node whose set of concepts contains this ones'
 			pBlockingNode = pBlockingNode->pParentNode;
 			while (pBlockingNode != 0)
 			{
-				if (!pBlockingNode->containsConceptsOf(this))
-					pBlockingNode = pBlockingNode->pParentNode;
+				if (pBlockingNode->containsConceptsOf(this))
+					break; // Found!
+				pBlockingNode = pBlockingNode->pParentNode;
 			}
 			// Here if pBlockingNode != 0 we found one and this node is still blocked
 			// else this node will now be free.
+			if (pLogger)
+			{
+				if (pBlockingNode == 0)
+					pLogger->log(pLoggingCT, this, "no ancestor node can block this node. Node is now free.");
+				else
+					pLogger->log(pLoggingCT, this, "is now blocked by node" + pLogger->getNodeStrID(pLoggingCT, pBlockingNode) + ".");
+			}
 		}
 	}
 	return result;
@@ -196,255 +226,11 @@ bool Reasoner::Node::containsConceptsOf(const Node* pNode) const
 			return false;
 	for (std::set<const Concept*>::const_iterator it = pNode->complexConcepts.begin(); it != pNode->complexConcepts.end(); ++it)
 		if (complexConcepts.find(*it) == complexConcepts.end())
+
 			return false;
 	return true;
 }
-
-
 ////////////////////////////////////////////////////////////////////////////////
-
-Reasoner::CompletionTree::~CompletionTree()
-{
-	deleteAll(mNodes);
-	deleteAll(mExpandableConceptQueue);
-}
-
-Reasoner::Node* Reasoner::CompletionTree::createNode(Node* pParent)
-{
-	Node* pNode = new Node(pParent);
-	cout << "New node " << pNode << " created from Completion Tree " << this << "." << endl;
-	mNodes.insert(pNode);
-	return pNode;
-}
-
-void Reasoner::CompletionTree::addExpandableConcept(const ExpandableConcept* pExpandableConcept)
-{
-	mExpandableConceptQueue.push_back(pExpandableConcept);
-	push_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
-}
-
-Reasoner::ExpansionResult Reasoner::CompletionTree::expand(const std::vector<const Concept*>& ontology, CompletionTree*& pNewCompletionTree)
-{
-	list<const ExpandableConcept*> insertionList;
-	ExpansionResult result = EXPANSION_RESULT_NOT_POSSIBLE;
-	bool skipThisExpandableConcept = false;
-	const ExpandableConcept* pEC;
-
-	while (result == EXPANSION_RESULT_NOT_POSSIBLE && !mExpandableConceptQueue.empty())
-	{
-		// Pop the most promising expandable concept
-		pop_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
-		pEC = mExpandableConceptQueue.back();
-		mExpandableConceptQueue.pop_back();
-
-		// If we're expanding a "bottom" concept, that means inconsistency
-		if (pEC->pConcept == Concept::getBottomConcept())
-			result = EXPANSION_RESULT_CLASH;
-		else if (pEC->pNode->isBlocked())
-		{
-			// We cannot expand in a blocked node, carry on.
-			insertionList.push_back(pEC);
-			cout << "Node " << pEC->pNode << " is blocked thus concept skipped." << endl;
-		} else
-		{
-			switch (pEC->pConcept->getType())
-			{
-				case Concept::TYPE_POSITIVE_ATOMIC:
-					// If there's a negative atomic argument in node with the same concept, clash!
-					if (pEC->pNode->negativeAtomicConcepts.find(pEC->pConcept->getSymbol()) != pEC->pNode->negativeAtomicConcepts.end())
-						result = EXPANSION_RESULT_CLASH;
-					else
-					{
-						result = EXPANSION_RESULT_OK;
-						skipThisExpandableConcept = true;
-					}
-					break;
-
-				case Concept::TYPE_NEGATIVE_ATOMIC:
-					// If there's a positive atomic argument in node with the same concept, clash!
-					if (pEC->pNode->positiveAtomicConcepts.find(pEC->pConcept->getSymbol()) != pEC->pNode->positiveAtomicConcepts.end())
-						result = EXPANSION_RESULT_CLASH;
-					else
-					{
-						result = EXPANSION_RESULT_OK;
-						skipThisExpandableConcept = true;
-					}
-					break;
-
-				case Concept::TYPE_CONJUNCTION:
-					// Add both subconcepts in node, simple enough! :)
-					if (pEC->pNode->add(pEC->pConcept->getConcept1()))
-						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept1()));
-					if (pEC->pNode->add(pEC->pConcept->getConcept2()))
-						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept2()));
-					result = EXPANSION_RESULT_OK;
-					skipThisExpandableConcept = true;
-					break;
-
-				case Concept::TYPE_DISJUNCTION:
-				{
-					// We now need to duplicate the incoming completion tree.
-					// This will clone the completion tree returning the new completion tree and the corresponding node to the one given.
-					std::pair<CompletionTree*, Node*> dupresult = duplicate(pEC->pNode);
-					pNewCompletionTree = dupresult.first;
-					// Now add the first concept of the disjunction to the actual completion tree
-					if (pEC->pNode->add(pEC->pConcept->getConcept1()))
-						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept1()));
-					// then add the second concept of the disjunction to the new completion tree
-					if (dupresult.second->add(pEC->pConcept->getConcept2()))
-						pNewCompletionTree->addExpandableConcept(new ExpandableConcept(dupresult.second, pEC->pConcept->getConcept2()));
-					result = EXPANSION_RESULT_OK;
-					skipThisExpandableConcept = true;
-					break;
-				}
-
-				case Concept::TYPE_EXISTENTIAL_RESTRICTION:
-				{
-					Symbol role = pEC->pConcept->getRole();
-					const Concept* pQualificationConcept = pEC->pConcept->getQualificationConcept();
-					// First get the range of nodes reachable by this one through thic concept role
-					Node::RelationMapRange range = pEC->pNode->roleAccessibilities.equal_range(role);
-					bool conceptFound = false;
-					for (Node::RelationMapIterator it = range.first; it != range.second && !conceptFound; ++it)
-						conceptFound = it->second->contains(pQualificationConcept);
-					if (!conceptFound)
-					{
-						// Then create a new world that contains the qualification concept
-						Node* pNode = createNode(pEC->pNode);
-						// Add all ontology concepts to it
-						for (size_t i = 0; i < ontology.size(); ++i)
-							if (pNode->add(ontology[i]))
-								insertionList.push_back(new ExpandableConcept(pNode, ontology[i]));
-						pEC->pNode->roleAccessibilities.insert(SymbolNodePair(role, pNode));
-						if (pNode->add(pQualificationConcept))
-							insertionList.push_back(new ExpandableConcept(pNode, pQualificationConcept));
-					}
-					result = EXPANSION_RESULT_OK;
-					skipThisExpandableConcept = true; //existential concept always consumed
-					break;
-				}
-
-				case Concept::TYPE_UNIVERSAL_RESTRICTION:
-				{
-					Symbol role = pEC->pConcept->getRole();
-					const Concept* pQualificationConcept = pEC->pConcept->getQualificationConcept();
-					// First get the range of nodes reachable by this one through thic concept role
-					Node::RelationMapRange range = pEC->pNode->roleAccessibilities.equal_range(role);
-					bool conceptNotFound = false;
-					for (Node::RelationMapIterator it = range.first; it != range.second; ++it)
-					{
-						if (it->second->add(pQualificationConcept))
-						{
-							insertionList.push_back(new ExpandableConcept(it->second, pQualificationConcept));
-							conceptNotFound = true;
-						}
-					}
-					if (conceptNotFound)
-					{
-						result = EXPANSION_RESULT_OK;
-						skipThisExpandableConcept = false;
-					} else
-						result = EXPANSION_RESULT_NOT_POSSIBLE;
-					break;
-				}
-
-				default:
-					throw Exception("Invalid concept found during expansion.");
-			}
-		}
-	}
-
-	if (skipThisExpandableConcept)
-		delete pEC;
-	else
-		insertionList.push_back(pEC); // Reinsert it in the list
-
-	// Now insert back all temporarily removed or newly inserted expandable concepts
-	while (!insertionList.empty())
-	{
-		mExpandableConceptQueue.push_back(insertionList.back());
-		insertionList.pop_back();
-	}
-	// Restore the heap structure
-	make_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
-	return result;
-}
-
-std::pair<Reasoner::CompletionTree*, Reasoner::Node*> Reasoner::CompletionTree::duplicate(const Node* pNode) const
-{
-	CompletionTree* pCompletionTree = new CompletionTree;
-	Node* pCorrespondingNode;
-	map<const Node*, Node*> nodeToNodeMap;
-	nodeToNodeMap[0] = 0;
-	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
-	{
-		Node* pNewNode = new Node(**it);
-		// Map the old one to the new one
-		nodeToNodeMap[*it] = pNewNode;
-		pCompletionTree->mNodes.insert(pNewNode);
-
-		if (*it == pNode)
-			pCorrespondingNode = pNewNode;
-	}
-	// Adjust role accessibilities and adjust all parent and blockingNode pointers so that they point to the new nodes.
-	for (NodeSet::const_iterator it = pCompletionTree->mNodes.begin(); it != pCompletionTree->mNodes.end(); ++it)
-	{
-		for (Node::RoleAccessibilityMap::iterator rit = (*it)->roleAccessibilities.begin(); rit != (*it)->roleAccessibilities.end(); ++rit)
-			rit->second = nodeToNodeMap[rit->second];
-
-		(*it)->pBlockingNode = nodeToNodeMap[(*it)->pBlockingNode];
-		(*it)->pParentNode = nodeToNodeMap[(*it)->pParentNode];
-	}
-	// Finally duplicate the expandable list into the new Completion Tree
-	for (size_t i = 0; i < mExpandableConceptQueue.size(); ++i)
-		pCompletionTree->mExpandableConceptQueue.push_back(new ExpandableConcept(
-		nodeToNodeMap[mExpandableConceptQueue[i]->pNode],
-		mExpandableConceptQueue[i]->pConcept
-		));
-	// Make the heap structure
-	make_heap(pCompletionTree->mExpandableConceptQueue.begin(), pCompletionTree->mExpandableConceptQueue.end(), ExpandableConcept::Compare());
-	return pair<Reasoner::CompletionTree*, Reasoner::Node*>(pCompletionTree, pCorrespondingNode);
-}
-
-void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Model* pModel) const
-{
-	pModel->clear();
-	map<Node*, Instance*> nodeToInstance;
-	// First create all instaces
-	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
-	{
-		Node* pNode = *it;
-		if (!pNode->isBlocked())
-		{
-			Instance * pInstance = pModel->createInstance();
-			nodeToInstance[pNode] = pInstance;
-			for (set<Symbol>::const_iterator it2 = pNode->positiveAtomicConcepts.begin(); it2 != pNode->positiveAtomicConcepts.end(); ++it2)
-				pInstance->addConcept(pConceptManager->getAtomicConcept(true, *it2));
-			for (set<Symbol>::const_iterator it2 = pNode->negativeAtomicConcepts.begin(); it2 != pNode->negativeAtomicConcepts.end(); ++it2)
-				pInstance->addConcept(pConceptManager->getAtomicConcept(false, *it2));
-			for (set<const Concept*>::const_iterator it2 = pNode->complexConcepts.begin(); it2 != pNode->complexConcepts.end(); ++it2)
-				pInstance->addConcept(*it2);
-		}
-	}
-
-	// Then add role accessibilities
-	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
-	{
-		Node* pNode = *it;
-		if (!pNode->isBlocked())
-		{
-			Instance * pInstance = nodeToInstance[pNode];
-
-			for (multimap<Symbol, Node*>::const_iterator it2 = pNode->roleAccessibilities.begin(); it2 != pNode->roleAccessibilities.end(); ++it2)
-			{
-				if (it2->second->pBlockingNode != pNode)
-					pInstance->addRoleAccessibility(it2->first, nodeToInstance[it2->second]);
-				else
-					pInstance->addRoleAccessibility(it2->first, pInstance);
-			}
-		}
-	}
-}
 
 bool Reasoner::ExpandableConcept::Compare::operator ()(const ExpandableConcept* pEC1, const ExpandableConcept * pEC2) const
 {
@@ -494,6 +280,348 @@ bool Reasoner::ExpandableConcept::Compare::operator ()(const ExpandableConcept* 
 
 	// No way, they're both conjunctions... just say anything (for now).	
 	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+Reasoner::CompletionTree::CompletionTree(const Logger* pLogger) :
+mpLogger(pLogger)
+{
+	if (mpLogger)
+		mpLogger->log(this, "created.");
+}
+
+Reasoner::CompletionTree::~CompletionTree()
+{
+
+	deleteAll(mNodes);
+	deleteAll(mExpandableConceptQueue);
+}
+
+Reasoner::Node* Reasoner::CompletionTree::createNode(Node* pParent)
+{
+	Node* pNode = new Node(pParent);
+	mNodes.insert(pNode);
+
+	if (mpLogger)
+		mpLogger->log(this, pNode, "created.");
+
+	return pNode;
+}
+
+void Reasoner::CompletionTree::addExpandableConcept(const ExpandableConcept* pExpandableConcept)
+{
+
+	mExpandableConceptQueue.push_back(pExpandableConcept);
+	push_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
+}
+
+Reasoner::ExpansionResult Reasoner::CompletionTree::expand(const std::vector<const Concept*>& ontology, CompletionTree*& pNewCompletionTree)
+{
+	list<const ExpandableConcept*> insertionList;
+	ExpansionResult result = EXPANSION_RESULT_NOT_POSSIBLE;
+	bool skipThisExpandableConcept = false;
+	const ExpandableConcept* pEC = 0;
+
+	while (result == EXPANSION_RESULT_NOT_POSSIBLE && !mExpandableConceptQueue.empty())
+	{
+		// Pop the most promising expandable concept
+		pop_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
+		pEC = mExpandableConceptQueue.back();
+		mExpandableConceptQueue.pop_back();
+
+		if (mpLogger)
+			mpLogger->log(this, pEC->pNode, pEC->pConcept, "chosen to be expanded.");
+
+		// If we're expanding a "bottom" concept, that means inconsistency
+		if (pEC->pConcept == Concept::getBottomConcept())
+		{
+			if (mpLogger)
+				mpLogger->log(this, pEC->pNode, pEC->pConcept, "concept is bottom, automatic clash.");
+			result = EXPANSION_RESULT_CLASH;
+		} else if (pEC->pNode->isBlocked())
+		{
+			// We cannot expand in a blocked node, carry on.
+			insertionList.push_back(pEC);
+			if (mpLogger)
+				mpLogger->log(this, pEC->pNode, "node is blocked, thus concept is skipped.");
+		} else
+		{
+			switch (pEC->pConcept->getType())
+			{
+				case Concept::TYPE_POSITIVE_ATOMIC:
+					// If there's a negative atomic argument in node with the same concept, clash!
+					if (pEC->pNode->negativeAtomicConcepts.find(pEC->pConcept->getSymbol()) != pEC->pNode->negativeAtomicConcepts.end())
+						result = EXPANSION_RESULT_CLASH;
+					else
+					{
+						result = EXPANSION_RESULT_OK;
+						skipThisExpandableConcept = true;
+					}
+					break;
+
+				case Concept::TYPE_NEGATIVE_ATOMIC:
+					// If there's a positive atomic argument in node with the same concept, clash!
+					if (pEC->pNode->positiveAtomicConcepts.find(pEC->pConcept->getSymbol()) != pEC->pNode->positiveAtomicConcepts.end())
+						result = EXPANSION_RESULT_CLASH;
+					else
+					{
+						result = EXPANSION_RESULT_OK;
+						skipThisExpandableConcept = true;
+					}
+					break;
+
+				case Concept::TYPE_CONJUNCTION:
+					if (mpLogger)
+						mpLogger->log(this, pEC->pNode, pEC->pConcept, "adding subconcepts to the same node.");
+					// Add both subconcepts in node, simple enough! :)
+					if (pEC->pNode->add(pEC->pConcept->getConcept1(), mpLogger, this))
+						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept1()));
+					if (pEC->pNode->add(pEC->pConcept->getConcept2(), mpLogger, this))
+						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept2()));
+					result = EXPANSION_RESULT_OK;
+					skipThisExpandableConcept = true;
+					break;
+
+				case Concept::TYPE_DISJUNCTION:
+				{
+					if (mpLogger)
+						mpLogger->log(this, pEC->pNode, pEC->pConcept, "adding the first subconcept into this Completion Tree, the second into its duplication.");
+					// We now need to duplicate the incoming completion tree.
+					// This will clone the completion tree returning the new completion tree and the corresponding node to the one given.
+					std::pair<CompletionTree*, Node*> dupresult = duplicate(pEC->pNode);
+					pNewCompletionTree = dupresult.first;
+					// Now add the first concept of the disjunction to the actual completion tree
+					if (pEC->pNode->add(pEC->pConcept->getConcept1(), mpLogger, this))
+						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept1()));
+					// then add the second concept of the disjunction to the new completion tree
+					if (dupresult.second->add(pEC->pConcept->getConcept2(), mpLogger, dupresult.first))
+						pNewCompletionTree->addExpandableConcept(new ExpandableConcept(dupresult.second, pEC->pConcept->getConcept2()));
+					result = EXPANSION_RESULT_OK;
+					skipThisExpandableConcept = true;
+
+					break;
+				}
+
+				case Concept::TYPE_EXISTENTIAL_RESTRICTION:
+				{
+					Symbol role = pEC->pConcept->getRole();
+					const Concept* pQualificationConcept = pEC->pConcept->getQualificationConcept();
+					// First get the range of nodes reachable by this one through thic concept role
+					Node::RelationMapRange range = pEC->pNode->roleAccessibilities.equal_range(role);
+					bool conceptFound = false;
+					for (Node::RelationMapIterator it = range.first; it != range.second && !conceptFound; ++it)
+					{
+						conceptFound = it->second->contains(pQualificationConcept);
+						if (mpLogger && conceptFound)
+							mpLogger->log(this, it->second, pQualificationConcept, "qualification found, no new node created.");
+					}
+					if (!conceptFound)
+					{
+						// Then create a new world that contains the qualification concept
+						Node* pNode = createNode(pEC->pNode);
+						// Add all ontology concepts to it
+						for (size_t i = 0; i < ontology.size(); ++i)
+							if (pNode->add(ontology[i], mpLogger, this))
+								insertionList.push_back(new ExpandableConcept(pNode, ontology[i]));
+						pEC->pNode->roleAccessibilities.insert(SymbolNodePair(role, pNode));
+						if (pNode->add(pQualificationConcept, mpLogger, this))
+							insertionList.push_back(new ExpandableConcept(pNode, pQualificationConcept));
+
+						if (mpLogger)
+							mpLogger->log(this, pNode, pQualificationConcept, "adding this qualification concept to this new node.");
+					}
+					result = EXPANSION_RESULT_OK;
+					skipThisExpandableConcept = true; //existential concept always consumed
+					break;
+				}
+
+				case Concept::TYPE_UNIVERSAL_RESTRICTION:
+				{
+					Symbol role = pEC->pConcept->getRole();
+					const Concept* pQualificationConcept = pEC->pConcept->getQualificationConcept();
+					// First get the range of nodes reachable by this one through thic concept role
+					Node::RelationMapRange range = pEC->pNode->roleAccessibilities.equal_range(role);
+					bool conceptNotFound = false;
+					for (Node::RelationMapIterator it = range.first; it != range.second; ++it)
+					{
+						if (it->second->add(pQualificationConcept, mpLogger, this))
+						{
+							insertionList.push_back(new ExpandableConcept(it->second, pQualificationConcept));
+							conceptNotFound = true;
+							if (mpLogger)
+								mpLogger->log(this, it->second, pQualificationConcept, "adding this qualification concept to this existing node.");
+						}
+					}
+					if (conceptNotFound)
+					{
+						result = EXPANSION_RESULT_OK;
+						skipThisExpandableConcept = false;
+					} else
+					{
+						result = EXPANSION_RESULT_NOT_POSSIBLE;
+						if (mpLogger)
+							mpLogger->log(this, pEC->pNode, pEC->pConcept, "impossible to expand as no reachable node does not contain qualification concept.");
+					}
+					break;
+				}
+
+				default:
+					throw Exception("Invalid concept found during expansion.");
+			}
+		}
+	}
+
+	if (skipThisExpandableConcept)
+		delete pEC;
+	else
+		insertionList.push_back(pEC); // Reinsert it in the list
+
+	// Now insert back all temporarily removed or newly inserted expandable concepts
+	while (!insertionList.empty())
+	{
+		mExpandableConceptQueue.push_back(insertionList.back());
+		insertionList.pop_back();
+	}
+	// Restore the heap structure
+	make_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
+
+	return result;
+}
+
+std::pair<Reasoner::CompletionTree*, Reasoner::Node*> Reasoner::CompletionTree::duplicate(const Node* pNode) const
+{
+	CompletionTree* pCompletionTree = new CompletionTree(mpLogger);
+	Node* pCorrespondingNode = 0;
+	map<const Node*, Node*> nodeToNodeMap;
+	nodeToNodeMap[0] = 0;
+	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
+	{
+		Node* pNewNode = new Node(**it);
+		// Map the old one to the new one
+		nodeToNodeMap[*it] = pNewNode;
+		pCompletionTree->mNodes.insert(pNewNode);
+
+		if (*it == pNode)
+			pCorrespondingNode = pNewNode;
+	}
+	// Adjust role accessibilities and adjust all parent and blockingNode pointers so that they point to the new nodes.
+	for (NodeSet::const_iterator it = pCompletionTree->mNodes.begin(); it != pCompletionTree->mNodes.end(); ++it)
+	{
+		for (Node::RoleAccessibilityMap::iterator rit = (*it)->roleAccessibilities.begin(); rit != (*it)->roleAccessibilities.end(); ++rit)
+			rit->second = nodeToNodeMap[rit->second];
+
+		(*it)->pBlockingNode = nodeToNodeMap[(*it)->pBlockingNode];
+		(*it)->pParentNode = nodeToNodeMap[(*it)->pParentNode];
+	}
+	// Finally duplicate the expandable list into the new Completion Tree
+	for (size_t i = 0; i < mExpandableConceptQueue.size(); ++i)
+		pCompletionTree->mExpandableConceptQueue.push_back(new ExpandableConcept(
+		nodeToNodeMap[mExpandableConceptQueue[i]->pNode],
+		mExpandableConceptQueue[i]->pConcept
+		));
+	// Make the heap structure
+	make_heap(pCompletionTree->mExpandableConceptQueue.begin(), pCompletionTree->mExpandableConceptQueue.end(), ExpandableConcept::Compare());
+
+	return pair<Reasoner::CompletionTree*, Reasoner::Node*>(pCompletionTree, pCorrespondingNode);
+}
+
+void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Model* pModel) const
+{
+	pModel->clear();
+	map<Node*, Instance*> nodeToInstance;
+	// First create all instaces
+	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
+	{
+		Node* pNode = *it;
+		if (!pNode->isBlocked())
+		{
+			Instance * pInstance = pModel->createInstance();
+			nodeToInstance[pNode] = pInstance;
+			for (set<Symbol>::const_iterator it2 = pNode->positiveAtomicConcepts.begin(); it2 != pNode->positiveAtomicConcepts.end(); ++it2)
+				pInstance->addConcept(pConceptManager->getAtomicConcept(true, *it2));
+			for (set<Symbol>::const_iterator it2 = pNode->negativeAtomicConcepts.begin(); it2 != pNode->negativeAtomicConcepts.end(); ++it2)
+				pInstance->addConcept(pConceptManager->getAtomicConcept(false, *it2));
+			for (set<const Concept*>::const_iterator it2 = pNode->complexConcepts.begin(); it2 != pNode->complexConcepts.end(); ++it2)
+				pInstance->addConcept(*it2);
+		}
+	}
+
+	// Then add role accessibilities
+	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
+	{
+		Node* pNode = *it;
+		if (!pNode->isBlocked())
+		{
+			Instance * pInstance = nodeToInstance[pNode];
+
+			for (multimap<Symbol, Node*>::const_iterator it2 = pNode->roleAccessibilities.begin(); it2 != pNode->roleAccessibilities.end(); ++it2)
+			{
+				if (it2->second->pBlockingNode != pNode)
+					pInstance->addRoleAccessibility(it2->first, nodeToInstance[it2->second]);
+
+				else
+					pInstance->addRoleAccessibility(it2->first, pInstance);
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+Reasoner::Logger::Logger(std::ostream& outStream, const SymbolDictionary* pSymbolDictionary) :
+mOutStream(outStream), mpSymbolDictionary(pSymbolDictionary), mCPCounter(1) { }
+
+void Reasoner::Logger::log(const std::string& message) const
+{
+
+	mOutStream << "> " << message << endl;
+}
+
+void Reasoner::Logger::log(const CompletionTree* pCP, const std::string& message) const
+{
+
+	mOutStream << "> " << "In CT " << getCPInfo(pCP).first << ": " << message << endl;
+}
+
+void Reasoner::Logger::log(const CompletionTree* pCP, const Node* pNode, const std::string& message) const
+{
+
+	mOutStream << "> " << "In CT " << getCPInfo(pCP).first << ", in node " << getNodeID(pCP, pNode) << ": " << message << endl;
+}
+
+void Reasoner::Logger::log(const CompletionTree* pCP, const Node* pNode, const Concept* pConcept, const std::string& message) const
+{
+
+	mOutStream << "> " << "In CT " << getCPInfo(pCP).first << ", in node " << getNodeID(pCP, pNode) << ": concept " << pConcept->toString(*mpSymbolDictionary) << " " << message << endl;
+}
+
+std::string Reasoner::Logger::getNodeStrID(const CompletionTree* pCP, const Node* pNode) const
+{
+	stringstream ss;
+	ss << getNodeID(pCP, pNode);
+	return ss.str();
+}
+
+std::pair<size_t, size_t> Reasoner::Logger::getCPInfo(const CompletionTree* pCP) const
+{
+	CompletionTreeInfoMap::iterator it = mCPtoIDInfo.find(pCP);
+	if (it == mCPtoIDInfo.end())
+		it = mCPtoIDInfo.insert(it, CompletionTreeInfoMap::value_type(pCP, CompletionTreeInfoMap::mapped_type(mCPCounter++, 1)));
+
+	return it->second;
+}
+
+size_t Reasoner::Logger::getNodeID(const CompletionTree* pCP, const Node* pNode) const
+{
+	CompletionTreeNodeInfoMap::iterator it = mCPNodeToID.find(CompletionTreeNodeInfoMap::key_type(pCP, pNode));
+	if (it == mCPNodeToID.end())
+	{
+		const pair<size_t, size_t>& cpinfo = getCPInfo(pCP);
+		it = mCPNodeToID.insert(it, CompletionTreeNodeInfoMap::value_type(CompletionTreeNodeInfoMap::key_type(pCP, pNode), cpinfo.second));
+		++(mCPtoIDInfo[pCP].second);
+	}
+	return it->second;
 }
 
 

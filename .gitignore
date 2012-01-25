@@ -6,4 +6,5 @@
 *.a
 nbproject
 *.dot
+log.txt
 *.png

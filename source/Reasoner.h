@@ -1,25 +1,29 @@
 /*******************************************************************************
- * Simple ALC Reasoner                                                         *
- * Copyright (c) 2012 Canio Massimo Tristano <massimo.tristano@gmail.com>      *
+ * Tiny Reason                                                                 *
+ * Copyright (c) 2012, Canio Massimo Tristano <massimo.tristano@gmail.com>     *
+ * All rights reserved.                                                        *
  *                                                                             *
- * This software is provided 'as-is', without any express or implied           *
- * warranty. In no event will the authors be held liable for any damages       *
- * arising from the use of this software.                                      *
- *	                                                                            *
- * Permission is granted to anyone to use this software for any purpose,       *
- * including commercial applications, and to alter it and redistribute it      *
- * freely, subject to the following restrictions:                              *
+ * Redistribution and use in source and binary forms, with or without          *
+ * modification, are permitted provided that the following conditions are met: *
+ *     * Redistributions of source code must retain the above copyright        *
+ *       notice, this list of conditions and the following disclaimer.         *
+ *     * Redistributions in binary form must reproduce the above copyright     *
+ *       notice, this list of conditions and the following disclaimer in the   *
+ *       documentation and/or other materials provided with the distribution.  *
+ *     * Neither the name of the <organization> nor the                        *
+ *       names of its contributors may be used to endorse or promote products  *
+ *       derived from this software without specific prior written permission. *
  *                                                                             *
- *  1. The origin of this software must not be misrepresented; you must not    *
- *  claim that you wrote the original software. If you use this software       *
- *  in a product, an acknowledgment in the product documentation would be      *
- *  appreciated but is not required.                                           *
- *                                                                             *
- *  2. Altered source versions must be plainly marked as such, and must not be *
- *  misrepresented as being the original software.                             *
- *                                                                             *
- * 3. This notice may not be removed or altered from any source                *
- * distribution.                                                               *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" *
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE   *
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE  *
+ * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY      *
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES  *
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;*
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND *
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT  *
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF    *
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           *
  ******************************************************************************/
 
 #pragma once
@@ -29,7 +33,7 @@
 #include "SymbolDictionary.h"
 #include "ConceptManager.h"
 
-namespace salcr
+namespace tinyreason
 {
 
 class Reasoner {
@@ -37,9 +41,14 @@ public:
 	Reasoner(const SymbolDictionary* pSymbolDictionary, const ConceptManager* pConceptManager);
 	~Reasoner();
 	void setOntology(const std::vector<const Concept*>& ontology);
-	bool isSatisfiable(const Concept* pConcept, Model* pModel = 0) const;
-	bool isSatisfiable(const std::vector<const Concept*>& concepts, Model* pModel = 0) const;
+	bool isSatisfiable(const Concept* pConcept, Model* pModel = 0, bool verbose = false) const;
+	bool isSatisfiable(const std::vector<const Concept*>& concepts, Model* pModel = 0, bool verbose = false) const;
 private:
+
+	class Logger;
+	class Node;
+	class CompletionTree;
+	class ExpandableConcept;
 
 	struct Node {
 		typedef std::multimap<Symbol, Node*> RoleAccessibilityMap;
@@ -60,10 +69,11 @@ private:
 		bool isBlocked() const {
 			return pBlockingNode;
 		}
-		bool add(const Concept * pConcept);
+		bool add(const Concept * pConcept, const Logger* pLogger, const CompletionTree * pLoggingCT);
 		bool contains(const Concept * pConcept) const;
 		bool containsConceptsOf(const Node * pNode) const;
 	};
+
 	typedef std::pair<Symbol, Node*> SymbolNodePair;
 
 	struct ExpandableConcept {
@@ -86,9 +96,7 @@ private:
 
 	class CompletionTree {
 	public:
-		CompletionTree() {
-			std::cout << "New Completion Tree created: " << this << std::endl;
-		}
+		CompletionTree(const Logger* pLogger);
 		~CompletionTree();
 		Node * createNode(Node* pParent);
 		void addExpandableConcept(const ExpandableConcept* pExpandableConcept);
@@ -96,17 +104,31 @@ private:
 		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode) const;
 		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
 	private:
+		const Logger* mpLogger;
 		typedef std::set<Node*> NodeSet;
 		NodeSet mNodes;
 		std::vector<const ExpandableConcept*> mExpandableConceptQueue;
 	};
 
-//	class Logger {
-//		void log(const CompletionTree* pCP, const std::string& message) const;
-//	private:
-//		std::map<const CompletionTree* pCP, size_t> mCPtoID;
-//		std::map<std::pair<const CompletionTree*, 
-//	};
+	class Logger {
+	public:
+		Logger(std::ostream& outStream, const SymbolDictionary* pSymbolDictionary);
+		void log(const std::string& message) const;
+		void log(const CompletionTree* pCP, const std::string& message) const;
+		void log(const CompletionTree* pCP, const Node* pNode, const std::string& message) const;
+		void log(const CompletionTree* pCP, const Node* pNode, const Concept* pConcept, const std::string& message) const;
+		std::string getNodeStrID(const CompletionTree* pCP, const Node* pNode) const;
+	private:
+		typedef std::map<const CompletionTree*, std::pair<size_t, size_t > > CompletionTreeInfoMap;
+		typedef std::map<std::pair<const CompletionTree*, const Node*>, size_t> CompletionTreeNodeInfoMap;
+		std::pair<size_t, size_t> getCPInfo(const CompletionTree* pCP) const;
+		size_t getNodeID(const CompletionTree* pCP, const Node* pNode) const;
+		std::ostream& mOutStream;
+		const SymbolDictionary* mpSymbolDictionary;
+		mutable size_t mCPCounter;
+		mutable CompletionTreeInfoMap mCPtoIDInfo;
+		mutable CompletionTreeNodeInfoMap mCPNodeToID;
+	};
 
 	const SymbolDictionary* mpSymbolDictionary;
 	const ConceptManager* mpConceptManager;

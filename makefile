@@ -9,11 +9,11 @@ else
 endif
 
 ifdef WIN32
-	TARGET:=salcr.exe
+	TARGET:=tr.exe
 	LFLAGS+=
 	LIBS+=
 else
-	TARGET:=salcr.elf
+	TARGET:=tr.elf
 	LIBS+= 
 endif
 
