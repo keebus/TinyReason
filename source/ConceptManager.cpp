@@ -195,6 +195,9 @@ void ConceptManager::parseAssertionList(std::istream& source, vector<const Conce
 			parseTransitiveRoleAssertion(source, transitiveRoles);
 		else
 			concepts.push_back(parseSingleComplexConcept(source));
+
+		while (mTokenType != T_SEMICOLON && mTokenType != T_EOS)
+			throwSyntaxException();
 	} while (true);
 }
 
