@@ -36,32 +36,42 @@ class Reasoner {
 public:
 	Reasoner(const SymbolDictionary* pSymbolDictionary, const ConceptManager* pConceptManager);
 	~Reasoner();
+	void setOntology(const std::vector<const Concept*>& ontology);
 	bool isSatisfiable(const Concept* pConcept, Model* pModel = 0) const;
 	bool isSatisfiable(const std::vector<const Concept*>& concepts, Model* pModel = 0) const;
 private:
 
 	struct Node {
+		typedef std::multimap<Symbol, Node*>::iterator RelationMapIterator;
+		typedef std::pair<RelationMapIterator, RelationMapIterator> RelationMapRange;
+
+		const Node* pParentNode;
+
 		std::set<Symbol> positiveAtomicConcepts;
 		std::set<Symbol> negativeAtomicConcepts;
 		std::set<const Concept*> complexConcepts;
 		std::multimap<Symbol, Node*> roleAccessibilities;
-
-		typedef std::multimap<Symbol, Node*>::iterator RelationMapIterator;
-		typedef std::pair<RelationMapIterator, RelationMapIterator> RelationMapRange;
-
+		const Node* pBlockingNode;
+		size_t mID;
+		// When a new node is created, it automatically is blocked by its parent
+		// because its (empty) label is contained within its parent.
+		Node(const Node * pParent) : pParentNode(pParent), pBlockingNode(pParent) { }
+		bool isBlocked() const {
+			return pBlockingNode;
+		}
 		bool add(const Concept * pConcept);
-		bool contains(const Concept * pConcept);
+		bool contains(const Concept * pConcept) const;
+		bool containsConceptsOf(const Node * pNode) const;
 	};
 	typedef std::pair<Symbol, Node*> SymbolNodePair;
 
 	class CompletionTree {
 	public:
-		~CompletionTree();
-		Node * createNode() {
-			Node* pNode = new Node;
-			mNodes.insert(pNode);
-			return pNode;
+		CompletionTree() {
+			std::cout << "New Completion Tree created: " << this << std::endl;
 		}
+		~CompletionTree();
+		Node * createNode(Node* pParent);
 		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode) const;
 		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
 	private:
@@ -80,7 +90,6 @@ private:
 		struct Compare {
 			bool operator()(const ExpandableConcept* pEC1, const ExpandableConcept * pEC2) const;
 		};
-
 	};
 
 	enum ExpansionResult {
@@ -92,10 +101,11 @@ private:
 
 	typedef std::priority_queue<const ExpandableConcept*, std::vector<const ExpandableConcept*>, ExpandableConcept::Compare> ExpandableConceptQueue;
 
-	static ExpansionResult expand(ExpandableConceptQueue& openConcepts, const ExpandableConcept* pExpandableConcept, CompletionTree*& pNewCompletionTree);
+	ExpansionResult expand(ExpandableConceptQueue& openConcepts, const ExpandableConcept* pExpandableConcept, CompletionTree*& pNewCompletionTree) const;
 
 	const SymbolDictionary* mpSymbolDictionary;
 	const ConceptManager* mpConceptManager;
+	std::vector<const Concept*> mOntology;
 };
 
 }

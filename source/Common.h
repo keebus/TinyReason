@@ -34,6 +34,7 @@
 #include <exception>
 #include <queue>
 #include <fstream>
+#include <algorithm>
 #include <tr1/memory>
 #define shared_ptr std::tr1::shared_ptr
 
@@ -98,6 +99,11 @@ inline void deleteAll(std::map<T, Q>& someMap) {
 		delete it->second;
 	someMap.clear();
 }
-
+template <typename T>
+inline std::string toString(const T& t) {
+	std::stringstream ss;
+	ss << t;
+	return ss.str();
+}
 }
 

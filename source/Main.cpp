@@ -41,15 +41,17 @@ int main(int argc, char** argv)
 			cout << "Usage: saltr (<ontology-file-name|-) <concepts-to-test-satisfiability>";
 			return -1;
 		}
-		
+
 		SymbolDictionary sd;
 		ConceptManager cp(&sd);
-
-		vector<const Concept*> ontologyConcepts;
+		Reasoner r(&sd, &cp);
+		
 		if (argv[1][0] != '-')
 		{
+			vector<const Concept*> ontologyConcepts;
 			ifstream f(argv[1]);
 			cp.parseConcepts(f, ontologyConcepts);
+			r.setOntology(ontologyConcepts);
 			cout << "Ontology concepts (optimized and normalized):" << endl;
 			for (size_t i = 0; i < ontologyConcepts.size(); ++i)
 				cout << "\t* " << ontologyConcepts[i]->toString(sd) << endl;
@@ -65,16 +67,16 @@ int main(int argc, char** argv)
 		for (size_t i = 0; i < concepts.size(); ++i)
 			cout << "\t* " << concepts[i]->toString(sd) << endl;
 
-		Reasoner r(&sd, &cp);
+
 		Model example;
 		if (r.isSatisfiable(concepts, &example))
 		{
-			cout << "Conjunction of concepts are satisfiable!" << endl;
+			cout << "Conjunction of concepts is satisfiable!" << endl;
 			ofstream outFile("example.dot");
 			example.dumpToDOTFile(sd, outFile);
 			cout << "Example dumped to example.dot" << endl;
 		} else
-			cout << "Conjunction of concepts are not satisfiable!" << endl;
+			cout << "Conjunction of concepts is not satisfiable!" << endl;
 
 		return 0;
 

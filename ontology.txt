@@ -1,0 +1,2 @@
+(A or B) and not (A and B)
+A isa C
