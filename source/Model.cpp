@@ -34,6 +34,7 @@ void Instance::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostr
 {
 	outStream << (size_t)this << "[label=\"";
 	for (std::set<const Concept*>::const_iterator it = mConcepts.begin(); it != mConcepts.end(); ++it)
+		if ((*it)->isAtomic())
 			outStream << (*it)->toString(symbolDictionary) << "\\n";
 	outStream << "\"];";
 

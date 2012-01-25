@@ -42,7 +42,8 @@ public:
 private:
 
 	struct Node {
-		typedef std::multimap<Symbol, Node*>::iterator RelationMapIterator;
+		typedef std::multimap<Symbol, Node*> RoleAccessibilityMap;
+		typedef RoleAccessibilityMap::iterator RelationMapIterator;
 		typedef std::pair<RelationMapIterator, RelationMapIterator> RelationMapRange;
 
 		const Node* pParentNode;
@@ -65,26 +66,11 @@ private:
 	};
 	typedef std::pair<Symbol, Node*> SymbolNodePair;
 
-	class CompletionTree {
-	public:
-		CompletionTree() {
-			std::cout << "New Completion Tree created: " << this << std::endl;
-		}
-		~CompletionTree();
-		Node * createNode(Node* pParent);
-		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode) const;
-		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
-	private:
-		typedef std::set<Node*> NodeSet;
-		NodeSet mNodes;
-	};
-
 	struct ExpandableConcept {
-		CompletionTree* pCompletionTree;
 		Node* pNode;
 		const Concept* pConcept;
-		ExpandableConcept(CompletionTree* pCompletionTree, Node* pNode, const Concept * pConcept) :
-		pCompletionTree(pCompletionTree), pNode(pNode), pConcept(pConcept) { }
+		ExpandableConcept(Node* pNode, const Concept * pConcept) :
+		pNode(pNode), pConcept(pConcept) { }
 
 		/** Heuristic for choosing the next complex concept to expand in an instance of a completion tree */
 		struct Compare {
@@ -94,14 +80,32 @@ private:
 
 	enum ExpansionResult {
 		EXPANSION_RESULT_NOT_POSSIBLE,
-		EXPANSION_RESULT_OK_SKIP,
-		EXPANSION_RESULT_OK_REINSERT,
+		EXPANSION_RESULT_OK,
 		EXPANSION_RESULT_CLASH
 	};
 
-	typedef std::priority_queue<const ExpandableConcept*, std::vector<const ExpandableConcept*>, ExpandableConcept::Compare> ExpandableConceptQueue;
+	class CompletionTree {
+	public:
+		CompletionTree() {
+			std::cout << "New Completion Tree created: " << this << std::endl;
+		}
+		~CompletionTree();
+		Node * createNode(Node* pParent);
+		void addExpandableConcept(const ExpandableConcept* pExpandableConcept);
+		ExpansionResult expand(const std::vector<const Concept*>& ontology, CompletionTree*& pNewCompletionTree);
+		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode) const;
+		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
+	private:
+		typedef std::set<Node*> NodeSet;
+		NodeSet mNodes;
+		std::vector<const ExpandableConcept*> mExpandableConceptQueue;
+	};
 
-	ExpansionResult expand(ExpandableConceptQueue& openConcepts, const ExpandableConcept* pExpandableConcept, CompletionTree*& pNewCompletionTree) const;
+	class Logger {
+		void log(const CompletionTree* pCP, const std::string& message) const;
+	private:
+		std::map<const CompletionTree* pCP, size_t> mCPtoID;
+	};
 
 	const SymbolDictionary* mpSymbolDictionary;
 	const ConceptManager* mpConceptManager;

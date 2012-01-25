@@ -51,113 +51,57 @@ bool Reasoner::isSatisfiable(const Concept* pConcept, Model* pModel) const
 bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model* pModel) const
 {
 	CompletionTree* pCompletionTree = new CompletionTree;
-
 	Node* pNode = pCompletionTree->createNode(0);
 
 	// Make a queue containing expandable concepts
-	ExpandableConceptQueue openConcepts;
 	cout << "Adding ontology concepts to first instance." << endl;
 	for (size_t i = 0; i < mOntology.size(); ++i)
 		if (pNode->add(mOntology[i]))
-			openConcepts.push(new ExpandableConcept(pCompletionTree, pNode, mOntology[i]));
+			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, mOntology[i]));
 	cout << "Adding testing user concept to first instance." << endl;
 	for (size_t i = 0; i < concepts.size(); ++i)
 		if (pNode->add(concepts[i]))
-			openConcepts.push(new ExpandableConcept(pCompletionTree, pNode, concepts[i]));
+			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, concepts[i]));
 
-	set<CompletionTree*> completionTrees;
-	completionTrees.insert(pCompletionTree);
+	list<CompletionTree*> completionTrees;
+	completionTrees.push_front(pCompletionTree);
 
-	// Then... go!
-	list<const ExpandableConcept*> reinsertionList;
-	bool atLeastOneExpansion;
+	// Then... go!	
+	bool foundCompleteCompletionTree = false;
 	do
 	{
-		// Reinsert all rexpandable concepts
-		while (!reinsertionList.empty())
+		// Take the first available Completion Tree in the open list
+		pCompletionTree = completionTrees.front();
+		cout << "Expanding in Completion Tree " << pCompletionTree << endl;
+		// Let the completion tree expand
+		CompletionTree* pNewCompletionTree = 0;
+		ExpansionResult result = pCompletionTree->expand(mOntology, pNewCompletionTree);
+		// If the expansion algorithm created a new completion tree, add it to our active set
+		if (pNewCompletionTree)
+			completionTrees.push_back(pNewCompletionTree);
+		switch (result)
 		{
-			openConcepts.push(reinsertionList.back());
-			reinsertionList.pop_back();
+			case EXPANSION_RESULT_NOT_POSSIBLE:
+				// Yes! We found a model as this completion tree cannot be further expanded.
+				cout << "Expansion could not be possible, model found!" << endl;
+				foundCompleteCompletionTree = true;
+				break;
+
+			case EXPANSION_RESULT_OK:
+				// Ok we expandend the complex concept but we didnt find a clash.
+				cout << "Expansion ok." << endl;
+				break;
+
+			case EXPANSION_RESULT_CLASH:
+				// Clash found in a node of current completion tree.
+				// Delete the incoherent completion tree from our set processing
+				// trees.
+				cout << "Clash found in completion tree " << pCompletionTree << "!" << endl;
+				delete pCompletionTree;
+				completionTrees.pop_front();
+				break;
 		}
-
-		atLeastOneExpansion = false;
-		while (!openConcepts.empty() && !atLeastOneExpansion)
-		{
-			// Pick up the most promising expandable concept among the trees that
-			// have not been deleted.
-			const ExpandableConcept* pEC = openConcepts.top();
-			openConcepts.pop();
-			cout << "Expandable concept " << pEC->pConcept->toString(*mpSymbolDictionary) << " of node " <<  pEC->pNode << " of CT " <<  pEC->pCompletionTree << " chosen." << endl;
-			if (completionTrees.find(pEC->pCompletionTree) == completionTrees.end())
-			{
-				cout << "Skipping it as the completion tree " <<  pEC->pCompletionTree << " has been deleted (for a clash)." << endl;
-				delete pEC;
-			} else if (pEC->pNode->isBlocked())
-			{
-				// We cannot expand in a blocked node, carry on.
-				reinsertionList.push_back(pEC);
-				cout << "Node " <<  pEC->pNode << " is blocked thus concept skipped." << endl;
-			} else
-			{
-				// Can we expand it now?
-				CompletionTree* pNewCompletionTree = 0;
-				ExpansionResult result = expand(openConcepts, pEC, pNewCompletionTree);
-				// If the expansion algorithm created a new completion tree, add it to our active set
-				if (pNewCompletionTree)
-					completionTrees.insert(pNewCompletionTree);
-				switch (result)
-				{
-					case EXPANSION_RESULT_NOT_POSSIBLE:
-						// We couldn't expand the concept now but it is possible we
-						// might expand it later. Thus add it to the reinsertion list.
-						cout << "Expansion could not be possible, reinserting this concept to the list." << endl;
-						reinsertionList.push_back(pEC);
-						break;
-
-					case EXPANSION_RESULT_OK_SKIP:
-						// Ok we expandend the complex concept but we didnt find a clash.
-						// EC should not be reinserted.
-						delete pEC;
-						atLeastOneExpansion = true;
-						cout << "Expansion ok, removing this concept from the available list." << endl;
-						// Continue...
-						break;
-
-					case EXPANSION_RESULT_OK_REINSERT:
-						// Ok we expanded the complex concept but we didnt find a clash.
-						// EC should be reinserted though.
-						reinsertionList.push_back(pEC);
-						atLeastOneExpansion = true;
-						cout << "Expansion ok, reinserting this concept to the list." << endl;
-						break;
-
-					case EXPANSION_RESULT_CLASH:
-						// Clash found in a node of current completion tree.
-						// Delete the incoherent completion tree from our set processing
-						// trees. Any other attempt to expand a concept in a node of
-						// this tree will be skipped.
-						cout << "Clash found in node " << pEC->pNode << " of completion tree " << pEC->pCompletionTree << "!" << endl;
-						delete pEC->pCompletionTree;
-						completionTrees.erase(pEC->pCompletionTree);
-						delete pEC;
-						atLeastOneExpansion = true;
-						break;
-				}
-			}
-		}
-	} while (!completionTrees.empty() && atLeastOneExpansion);
-
-	// Cleanup memory
-	while (!reinsertionList.empty())
-	{
-		delete reinsertionList.back();
-		reinsertionList.pop_back();
-	}
-	while (!openConcepts.empty())
-	{
-		delete openConcepts.top();
-		openConcepts.pop();
-	}
+	} while (!completionTrees.empty() && !foundCompleteCompletionTree);
 
 	// Now check results
 	if (completionTrees.empty())
@@ -170,12 +114,12 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 		if (pModel)
 		{
 			// Convert a completion tree into a model
-			CompletionTree* pExampleCompletionTree = *completionTrees.begin();
+			CompletionTree* pExampleCompletionTree = completionTrees.front();
 			pExampleCompletionTree->toModel(mpConceptManager, pModel);
 			pExampleCompletionTree = 0;
 		}
 		// Cleanup memory
-		for (set<CompletionTree*>::iterator it = completionTrees.begin(); it != completionTrees.end(); ++it)
+		for (list<CompletionTree*>::iterator it = completionTrees.begin(); it != completionTrees.end(); ++it)
 			delete *it;
 
 		return true;
@@ -262,21 +206,175 @@ bool Reasoner::Node::containsConceptsOf(const Node* pNode) const
 Reasoner::CompletionTree::~CompletionTree()
 {
 	deleteAll(mNodes);
+	deleteAll(mExpandableConceptQueue);
 }
 
 Reasoner::Node* Reasoner::CompletionTree::createNode(Node* pParent)
 {
 	Node* pNode = new Node(pParent);
-	cout << "New node " <<  pNode << " created from Completion Tree " << this << "." << endl;
+	cout << "New node " << pNode << " created from Completion Tree " << this << "." << endl;
 	mNodes.insert(pNode);
 	return pNode;
+}
+
+void Reasoner::CompletionTree::addExpandableConcept(const ExpandableConcept* pExpandableConcept)
+{
+	mExpandableConceptQueue.push_back(pExpandableConcept);
+	push_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
+}
+
+Reasoner::ExpansionResult Reasoner::CompletionTree::expand(const std::vector<const Concept*>& ontology, CompletionTree*& pNewCompletionTree)
+{
+	list<const ExpandableConcept*> insertionList;
+	ExpansionResult result = EXPANSION_RESULT_NOT_POSSIBLE;
+	bool skipThisExpandableConcept = false;
+	const ExpandableConcept* pEC;
+
+	while (result == EXPANSION_RESULT_NOT_POSSIBLE && !mExpandableConceptQueue.empty())
+	{
+		// Pop the most promising expandable concept
+		pop_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
+		pEC = mExpandableConceptQueue.back();
+		mExpandableConceptQueue.pop_back();
+
+		// If we're expanding a "bottom" concept, that means inconsistency
+		if (pEC->pConcept == Concept::getBottomConcept())
+			result = EXPANSION_RESULT_CLASH;
+		else if (pEC->pNode->isBlocked())
+		{
+			// We cannot expand in a blocked node, carry on.
+			insertionList.push_back(pEC);
+			cout << "Node " << pEC->pNode << " is blocked thus concept skipped." << endl;
+		} else
+		{
+			switch (pEC->pConcept->getType())
+			{
+				case Concept::TYPE_POSITIVE_ATOMIC:
+					// If there's a negative atomic argument in node with the same concept, clash!
+					if (pEC->pNode->negativeAtomicConcepts.find(pEC->pConcept->getSymbol()) != pEC->pNode->negativeAtomicConcepts.end())
+						result = EXPANSION_RESULT_CLASH;
+					else
+					{
+						result = EXPANSION_RESULT_OK;
+						skipThisExpandableConcept = true;
+					}
+					break;
+
+				case Concept::TYPE_NEGATIVE_ATOMIC:
+					// If there's a positive atomic argument in node with the same concept, clash!
+					if (pEC->pNode->positiveAtomicConcepts.find(pEC->pConcept->getSymbol()) != pEC->pNode->positiveAtomicConcepts.end())
+						result = EXPANSION_RESULT_CLASH;
+					else
+					{
+						result = EXPANSION_RESULT_OK;
+						skipThisExpandableConcept = true;
+					}
+					break;
+
+				case Concept::TYPE_CONJUNCTION:
+					// Add both subconcepts in node, simple enough! :)
+					if (pEC->pNode->add(pEC->pConcept->getConcept1()))
+						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept1()));
+					if (pEC->pNode->add(pEC->pConcept->getConcept2()))
+						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept2()));
+					result = EXPANSION_RESULT_OK;
+					skipThisExpandableConcept = true;
+					break;
+
+				case Concept::TYPE_DISJUNCTION:
+				{
+					// We now need to duplicate the incoming completion tree.
+					// This will clone the completion tree returning the new completion tree and the corresponding node to the one given.
+					std::pair<CompletionTree*, Node*> dupresult = duplicate(pEC->pNode);
+					pNewCompletionTree = dupresult.first;
+					// Now add the first concept of the disjunction to the actual completion tree
+					if (pEC->pNode->add(pEC->pConcept->getConcept1()))
+						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept1()));
+					// then add the second concept of the disjunction to the new completion tree
+					if (dupresult.second->add(pEC->pConcept->getConcept2()))
+						pNewCompletionTree->addExpandableConcept(new ExpandableConcept(dupresult.second, pEC->pConcept->getConcept2()));
+					result = EXPANSION_RESULT_OK;
+					skipThisExpandableConcept = true;
+					break;
+				}
+
+				case Concept::TYPE_EXISTENTIAL_RESTRICTION:
+				{
+					Symbol role = pEC->pConcept->getRole();
+					const Concept* pQualificationConcept = pEC->pConcept->getQualificationConcept();
+					// First get the range of nodes reachable by this one through thic concept role
+					Node::RelationMapRange range = pEC->pNode->roleAccessibilities.equal_range(role);
+					bool conceptFound = false;
+					for (Node::RelationMapIterator it = range.first; it != range.second && !conceptFound; ++it)
+						conceptFound = it->second->contains(pQualificationConcept);
+					if (!conceptFound)
+					{
+						// Then create a new world that contains the qualification concept
+						Node* pNode = createNode(pEC->pNode);
+						// Add all ontology concepts to it
+						for (size_t i = 0; i < ontology.size(); ++i)
+							if (pNode->add(ontology[i]))
+								insertionList.push_back(new ExpandableConcept(pNode, ontology[i]));
+						pEC->pNode->roleAccessibilities.insert(SymbolNodePair(role, pNode));
+						if (pNode->add(pQualificationConcept))
+							insertionList.push_back(new ExpandableConcept(pNode, pQualificationConcept));
+					}
+					result = EXPANSION_RESULT_OK;
+					skipThisExpandableConcept = true; //existential concept always consumed
+					break;
+				}
+
+				case Concept::TYPE_UNIVERSAL_RESTRICTION:
+				{
+					Symbol role = pEC->pConcept->getRole();
+					const Concept* pQualificationConcept = pEC->pConcept->getQualificationConcept();
+					// First get the range of nodes reachable by this one through thic concept role
+					Node::RelationMapRange range = pEC->pNode->roleAccessibilities.equal_range(role);
+					bool conceptNotFound = false;
+					for (Node::RelationMapIterator it = range.first; it != range.second; ++it)
+					{
+						if (it->second->add(pQualificationConcept))
+						{
+							insertionList.push_back(new ExpandableConcept(it->second, pQualificationConcept));
+							conceptNotFound = true;
+						}
+					}
+					if (conceptNotFound)
+					{
+						result = EXPANSION_RESULT_OK;
+						skipThisExpandableConcept = false;
+					} else
+						result = EXPANSION_RESULT_NOT_POSSIBLE;
+					break;
+				}
+
+				default:
+					throw Exception("Invalid concept found during expansion.");
+			}
+		}
+	}
+
+	if (skipThisExpandableConcept)
+		delete pEC;
+	else
+		insertionList.push_back(pEC); // Reinsert it in the list
+
+	// Now insert back all temporarily removed or newly inserted expandable concepts
+	while (!insertionList.empty())
+	{
+		mExpandableConceptQueue.push_back(insertionList.back());
+		insertionList.pop_back();
+	}
+	// Restore the heap structure
+	make_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
+	return result;
 }
 
 std::pair<Reasoner::CompletionTree*, Reasoner::Node*> Reasoner::CompletionTree::duplicate(const Node* pNode) const
 {
 	CompletionTree* pCompletionTree = new CompletionTree;
 	Node* pCorrespondingNode;
-	map<const Node*, const Node*> nodeToNodeMap;
+	map<const Node*, Node*> nodeToNodeMap;
 	nodeToNodeMap[0] = 0;
 	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
 	{
@@ -288,13 +386,23 @@ std::pair<Reasoner::CompletionTree*, Reasoner::Node*> Reasoner::CompletionTree::
 		if (*it == pNode)
 			pCorrespondingNode = pNewNode;
 	}
-	// Now adjust all parent and blockingNode pointers so that they point to the new nodes.
+	// Adjust role accessibilities and adjust all parent and blockingNode pointers so that they point to the new nodes.
 	for (NodeSet::const_iterator it = pCompletionTree->mNodes.begin(); it != pCompletionTree->mNodes.end(); ++it)
 	{
+		for (Node::RoleAccessibilityMap::iterator rit = (*it)->roleAccessibilities.begin(); rit != (*it)->roleAccessibilities.end(); ++rit)
+			rit->second = nodeToNodeMap[rit->second];
+
 		(*it)->pBlockingNode = nodeToNodeMap[(*it)->pBlockingNode];
 		(*it)->pParentNode = nodeToNodeMap[(*it)->pParentNode];
 	}
-
+	// Finally duplicate the expandable list into the new Completion Tree
+	for (size_t i = 0; i < mExpandableConceptQueue.size(); ++i)
+		pCompletionTree->mExpandableConceptQueue.push_back(new ExpandableConcept(
+		nodeToNodeMap[mExpandableConceptQueue[i]->pNode],
+		mExpandableConceptQueue[i]->pConcept
+		));
+	// Make the heap structure
+	make_heap(pCompletionTree->mExpandableConceptQueue.begin(), pCompletionTree->mExpandableConceptQueue.end(), ExpandableConcept::Compare());
 	return pair<Reasoner::CompletionTree*, Reasoner::Node*>(pCompletionTree, pCorrespondingNode);
 }
 
@@ -342,10 +450,7 @@ bool Reasoner::ExpandableConcept::Compare::operator ()(const ExpandableConcept* 
 {
 	// Return false to say that pEC1 is BETTER than pEC2
 
-	// First sort by Completion Tree
-	// TODO
-
-	// Then sort by determinism
+	// Sort by determinism
 	if (pEC1->pConcept->isExpansionDeterministic() && !pEC2->pConcept->isExpansionDeterministic())
 		return false;
 
@@ -390,103 +495,6 @@ bool Reasoner::ExpandableConcept::Compare::operator ()(const ExpandableConcept* 
 	// No way, they're both conjunctions... just say anything (for now).	
 	return true;
 }
-
-Reasoner::ExpansionResult Reasoner::expand(ExpandableConceptQueue& openConcepts, const ExpandableConcept* pExpandableConcept, CompletionTree*& pNewCompletionTree) const
-{
-	// If we're expanding a "bottom" concept, that means inconsistency
-	if (pExpandableConcept->pConcept == Concept::getBottomConcept())
-		return EXPANSION_RESULT_CLASH;
-
-	switch (pExpandableConcept->pConcept->getType())
-	{
-		case Concept::TYPE_POSITIVE_ATOMIC:
-			// If there's a negative atomic argument in node with the same concept, clash!
-			if (pExpandableConcept->pNode->negativeAtomicConcepts.find(pExpandableConcept->pConcept->getSymbol()) != pExpandableConcept->pNode->negativeAtomicConcepts.end())
-				return EXPANSION_RESULT_CLASH;
-			else
-				return EXPANSION_RESULT_OK_SKIP;
-
-		case Concept::TYPE_NEGATIVE_ATOMIC:
-			// If there's a positive atomic argument in node with the same concept, clash!
-			if (pExpandableConcept->pNode->positiveAtomicConcepts.find(pExpandableConcept->pConcept->getSymbol()) != pExpandableConcept->pNode->positiveAtomicConcepts.end())
-				return EXPANSION_RESULT_CLASH;
-			else
-				return EXPANSION_RESULT_OK_SKIP;
-
-		case Concept::TYPE_CONJUNCTION:
-			// Add both subconcepts in node, simple enough! :)
-			if (pExpandableConcept->pNode->add(pExpandableConcept->pConcept->getConcept1()))
-				openConcepts.push(new ExpandableConcept(pExpandableConcept->pCompletionTree, pExpandableConcept->pNode, pExpandableConcept->pConcept->getConcept1()));
-			if (pExpandableConcept->pNode->add(pExpandableConcept->pConcept->getConcept2()))
-				openConcepts.push(new ExpandableConcept(pExpandableConcept->pCompletionTree, pExpandableConcept->pNode, pExpandableConcept->pConcept->getConcept2()));
-			return EXPANSION_RESULT_OK_SKIP;
-
-		case Concept::TYPE_DISJUNCTION:
-		{
-			// We now need to duplicate the incoming completion tree.
-			// This will clone the completion tree returning the new completion tree and the corresponding node to the one given.
-			std::pair<CompletionTree*, Node*> result = pExpandableConcept->pCompletionTree->duplicate(pExpandableConcept->pNode);
-			pNewCompletionTree = result.first;
-			// Now add the first concept of the disjunction to the actual completion tree
-			if (pExpandableConcept->pNode->add(pExpandableConcept->pConcept->getConcept1()))
-				openConcepts.push(new ExpandableConcept(pExpandableConcept->pCompletionTree, pExpandableConcept->pNode, pExpandableConcept->pConcept->getConcept1()));
-			// then add the second concept of the disjunction to the new completion tree
-			if (result.second->add(pExpandableConcept->pConcept->getConcept2()))
-				openConcepts.push(new ExpandableConcept(result.first, result.second, pExpandableConcept->pConcept->getConcept2()));
-			return EXPANSION_RESULT_OK_SKIP;
-		}
-
-		case Concept::TYPE_EXISTENTIAL_RESTRICTION:
-		{
-			Symbol role = pExpandableConcept->pConcept->getRole();
-			const Concept* pQualificationConcept = pExpandableConcept->pConcept->getQualificationConcept();
-			// First get the range of nodes reachable by this one through thic concept role
-			Node::RelationMapRange range = pExpandableConcept->pNode->roleAccessibilities.equal_range(role);
-			bool conceptFound = false;
-			for (Node::RelationMapIterator it = range.first; it != range.second && !conceptFound; ++it)
-				conceptFound = it->second->contains(pQualificationConcept);
-			if (!conceptFound)
-			{
-				// Then create a new world that contains the qualification concept
-				Node* pNode = pExpandableConcept->pCompletionTree->createNode(pExpandableConcept->pNode);
-				// Add all ontology concepts to it
-				for (size_t i = 0; i < mOntology.size(); ++i)
-					if (pNode->add(mOntology[i]))
-						openConcepts.push(new ExpandableConcept(pExpandableConcept->pCompletionTree, pNode, mOntology[i]));
-				pExpandableConcept->pNode->roleAccessibilities.insert(SymbolNodePair(role, pNode));
-				pNode->add(pQualificationConcept);
-				openConcepts.push(new ExpandableConcept(pExpandableConcept->pCompletionTree, pNode, pQualificationConcept));
-			}
-			return EXPANSION_RESULT_OK_SKIP; //complex concept always consumed
-		}
-
-		case Concept::TYPE_UNIVERSAL_RESTRICTION:
-		{
-			Symbol role = pExpandableConcept->pConcept->getRole();
-			const Concept* pQualificationConcept = pExpandableConcept->pConcept->getQualificationConcept();
-			// First get the range of nodes reachable by this one through thic concept role
-			Node::RelationMapRange range = pExpandableConcept->pNode->roleAccessibilities.equal_range(role);
-			bool conceptNotFound = false;
-			for (Node::RelationMapIterator it = range.first; it != range.second; ++it)
-			{
-				if (it->second->add(pQualificationConcept))
-				{
-					openConcepts.push(new ExpandableConcept(pExpandableConcept->pCompletionTree, it->second, pQualificationConcept));
-					conceptNotFound = true;
-				}
-			}
-			if (conceptNotFound)
-				return EXPANSION_RESULT_OK_REINSERT;
-			else
-				return EXPANSION_RESULT_NOT_POSSIBLE;
-		}
-
-		default:
-			throw Exception("Invalid concept found during expansion.");
-			return EXPANSION_RESULT_CLASH;
-	}
-}
-
 
 
 }
