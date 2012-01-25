@@ -51,7 +51,11 @@ DL Syntax
 		Man is Person and Male;
 		Parent is hasChild something;
 		Mother is Woman and Parent;
-		
+	
+	To specify a transitive role, use the "trans" keyword followed by role names
+	separated by at least one space and ending with a semicolon.
+	Example
+		trans greaterThan equalTo;
 Usage
 =====
 	The tc executable must be used giving the following arguments:
@@ -69,8 +73,11 @@ Usage
 	by a semicolon ';'. To use no ontology, pass '-' as argument.
 	
 	The concept to evaluate is mandatory. The Reasoner will try to satisfy the
-	specified concept within the specified ontology.
-
+	specified concept within the specified ontology.		
+	
+	NOTE: you can specify multiple concepts (and transitive role assertions) in
+	the concept to evaluate.
+	
 Reasoning Services
 ==================
 	* Concept satisfiability: pass any option and '-' as ontology argument then
