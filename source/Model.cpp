@@ -34,6 +34,16 @@ using namespace std;
 namespace tinyreason
 {
 
+void Instance::addRoleAccessibility(Symbol role, const Instance* pInstance)
+{
+	typedef std::pair<std::multimap<Symbol, const Instance*>::iterator, std::multimap<Symbol, const Instance*>::iterator> Range;
+	const Range& range = mRoleAccessibilities.equal_range(role);
+	for (Range::first_type it = range.first; it != range.second; ++it)
+		if (it->second == pInstance)
+			return;
+	mRoleAccessibilities.insert(range.first, std::pair<Symbol, const Instance*> (role, pInstance));
+}
+
 void Instance::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
 {
 	outStream << (size_t)this << "[label=\"";

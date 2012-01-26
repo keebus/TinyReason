@@ -73,14 +73,17 @@ private:
 		std::set<const Concept*> complexConcepts;
 		std::multimap<Symbol, Node*> roleAccessibilities;
 		const Node* pBlockingNode;
+		size_t totalConceptCount;
 
 		// When a new node is created, it automatically is blocked by its parent
 		// because its (empty) label is contained within its parent.
-		Node(size_t id, const Node * pParent) : ID(id), pParentNode(pParent), pBlockingNode(pParent) { }
+		Node(size_t id, const Node * pParent) :
+		ID(id), pParentNode(pParent), pBlockingNode(pParent), totalConceptCount(0) { }
 		bool isBlocked() const {
 			return pBlockingNode;
 		}
-		bool add(const Concept * pConcept, const Logger* pLogger, const CompletionTree * pLoggingCT);
+		bool addConcept(const Concept * pConcept, const Logger* pLogger, const CompletionTree * pLoggingCT);
+		void addRoleAccessibility(Symbol role, Node * pToOtherNode);
 		bool contains(const Concept * pConcept) const;
 		bool containsConceptsOf(const Node * pNode) const;
 	};
@@ -107,16 +110,23 @@ private:
 
 	class CompletionTree {
 	public:
+
+		struct ComparePtrs {
+			bool operator()(const CompletionTree* pCT1, const CompletionTree * pCT2) const;
+		};
+
 		CompletionTree(const Reasoner* pReasoner, const Logger* pLogger);
 		~CompletionTree();
 		size_t getID() const {
 			return mID;
 		}
-		Node * createNode(Node* pParent);
+		size_t getConceptCount() const;
+		Node* createNode(Node* pParent);
 		void addExpandableConcept(const ExpandableConcept* pExpandableConcept);
 		ExpansionResult expand(CompletionTree*& pNewCompletionTree);
-		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode,const std::list<const ExpandableConcept*>& insertionList) const;
+		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode, const std::list<const ExpandableConcept*>& insertionList) const;
 		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
+
 	private:
 		const Reasoner* mpReasoner;
 		size_t mID;

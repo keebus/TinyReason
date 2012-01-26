@@ -78,19 +78,20 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 	if (pLogger)
 		pLogger->log("adding ontology concepts to first instance.");
 	for (size_t i = 0; i < mOntology.size(); ++i)
-		if (pNode->add(mOntology[i], pLogger, pCompletionTree))
+		if (pNode->addConcept(mOntology[i], pLogger, pCompletionTree))
 			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, mOntology[i]));
 	if (pLogger)
 		pLogger->log("adding testing user concept to first instance.");
 	for (size_t i = 0; i < concepts.size(); ++i)
-		if (pNode->add(concepts[i], pLogger, pCompletionTree))
+		if (pNode->addConcept(concepts[i], pLogger, pCompletionTree))
 			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, concepts[i]));
 
-	list<CompletionTree*> completionTrees;
-	completionTrees.push_front(pCompletionTree);
+	std::vector<CompletionTree*> completionTrees;
+	completionTrees.push_back(pCompletionTree);
 
 	// Then... go!	
 	bool foundCompleteCompletionTree = false;
+	size_t completeTreeCount = 0;
 	do
 	{
 		// Take the first available Completion Tree in the open list
@@ -102,7 +103,10 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 		ExpansionResult result = pCompletionTree->expand(pNewCompletionTree);
 		// If the expansion algorithm created a new completion tree, add it to our active set
 		if (pNewCompletionTree)
+		{
 			completionTrees.push_back(pNewCompletionTree);
+			push_heap(completionTrees.begin(), completionTrees.end(), CompletionTree::ComparePtrs());
+		}
 		switch (result)
 		{
 			case EXPANSION_RESULT_NOT_POSSIBLE:
@@ -125,10 +129,15 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 				if (pLogger)
 					pLogger->log(pCompletionTree, "clash found!");
 				delete pCompletionTree;
-				completionTrees.pop_front();
+				pop_heap(completionTrees.begin(), completionTrees.end(), CompletionTree::ComparePtrs());
+				completionTrees.pop_back();
+				++completeTreeCount;
 				break;
 		}
 	} while (!completionTrees.empty() && !foundCompleteCompletionTree);
+
+	cout << "Number of complete trees: " + toString(completeTreeCount) + ". Number of incomplete trees: " + toString(completionTrees.size()) +
+		". (total " + toString(completeTreeCount + completionTrees.size()) + ").\n";
 
 	// Now check results
 	if (completionTrees.empty())
@@ -146,7 +155,7 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 			pExampleCompletionTree = 0;
 		}
 		// Cleanup memory
-		for (list<CompletionTree*>::iterator it = completionTrees.begin(); it != completionTrees.end(); ++it)
+		for (vector<CompletionTree*>::iterator it = completionTrees.begin(); it != completionTrees.end(); ++it)
 			delete *it;
 
 		return true;
@@ -155,7 +164,7 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 }
 ////////////////////////////////////////////////////////////////////////////////
 
-bool Reasoner::Node::add(const Concept * pConcept, const Logger* pLogger, const CompletionTree * pLoggingCT)
+bool Reasoner::Node::addConcept(const Concept * pConcept, const Logger* pLogger, const CompletionTree * pLoggingCT)
 {
 	// If I'm trying to add TOP, skip it and say "we already have it"
 	if (pConcept == Concept::getTopConcept())
@@ -174,6 +183,8 @@ bool Reasoner::Node::add(const Concept * pConcept, const Logger* pLogger, const 
 			result = complexConcepts.insert(pConcept).second;
 			break;
 	}
+	if (result)
+		++totalConceptCount;
 	if (result && pLogger)
 		pLogger->log(pLoggingCT, this, pConcept, "added to this node.");
 	else if (!result && pLogger)
@@ -210,6 +221,17 @@ bool Reasoner::Node::add(const Concept * pConcept, const Logger* pLogger, const 
 		}
 	}
 	return result;
+}
+
+void Reasoner::Node::addRoleAccessibility(Symbol role, Node* pToOtherNode)
+{
+	//	typedef std::pair<std::multimap<Symbol, Node*>::iterator, std::multimap<Symbol, Node*>::iterator> Range;
+	//	const Range& range = roleAccessibilities.equal_range(role);
+	//	for (Range::first_type it = range.first; it != range.second; ++it)
+	//		if (it->second == pToOtherNode)
+	//			return;
+	//	roleAccessibilities.insert(range.first, std::pair<Symbol, Node*> (role, pToOtherNode));
+	roleAccessibilities.insert(SymbolNodePair(role, pToOtherNode));
 }
 
 bool Reasoner::Node::contains(const Concept * pConcept) const
@@ -250,8 +272,10 @@ bool Reasoner::ExpandableConcept::Compare::operator ()(const ExpandableConcept* 
 {
 	// Return false to say that pEC1 is BETTER than pEC2
 
-	// Sort by determinism
-	if (pEC1->pConcept->isExpansionDeterministic() && !pEC2->pConcept->isExpansionDeterministic())
+	// Expand non blocked nodes first.
+	if (pEC1->pNode->isBlocked() && !pEC2->pNode->isBlocked())
+		return true;
+	else if (pEC2->pNode->isBlocked() && !pEC1->pNode->isBlocked())
 		return false;
 
 	// Ok pEC2 is not nondeterministic, let's check the concepts
@@ -298,6 +322,15 @@ bool Reasoner::ExpandableConcept::Compare::operator ()(const ExpandableConcept* 
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool Reasoner::CompletionTree::ComparePtrs::operator ()(const CompletionTree* pCT1, const CompletionTree* pCT2) const
+{
+	// True means CT1 is worse than CT2
+	float conceptCount1 = pCT1->getConceptCount();
+	float conceptCount2 = pCT2->getConceptCount();
+
+	return conceptCount1 / pCT1->mNodes.size() < conceptCount2 / pCT2->mNodes.size();
+}
+
 Reasoner::CompletionTree::CompletionTree(const Reasoner* pReasoner, const Logger* pLogger) :
 mpReasoner(pReasoner), mID(pReasoner->mCompletionTreeIDCounter++), mpLogger(pLogger)
 {
@@ -310,6 +343,14 @@ Reasoner::CompletionTree::~CompletionTree()
 
 	deleteAll(mNodes);
 	deleteAll(mExpandableConceptQueue);
+}
+
+size_t Reasoner::CompletionTree::getConceptCount() const
+{
+	size_t c = 0;
+	for (std::set<Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
+		c += (*it)->totalConceptCount;
+	return c;
 }
 
 Reasoner::Node* Reasoner::CompletionTree::createNode(Node* pParent)
@@ -325,7 +366,6 @@ Reasoner::Node* Reasoner::CompletionTree::createNode(Node* pParent)
 
 void Reasoner::CompletionTree::addExpandableConcept(const ExpandableConcept* pExpandableConcept)
 {
-
 	mExpandableConceptQueue.push_back(pExpandableConcept);
 	push_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
 }
@@ -388,9 +428,9 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 					if (mpLogger)
 						mpLogger->log(this, pEC->pNode, pEC->pConcept, "adding subconcepts to the same node.");
 					// Add both subconcepts in node, simple enough! :)
-					if (pEC->pNode->add(pEC->pConcept->getConcept1(), mpLogger, this))
+					if (pEC->pNode->addConcept(pEC->pConcept->getConcept1(), mpLogger, this))
 						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept1()));
-					if (pEC->pNode->add(pEC->pConcept->getConcept2(), mpLogger, this))
+					if (pEC->pNode->addConcept(pEC->pConcept->getConcept2(), mpLogger, this))
 						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept2()));
 					result = EXPANSION_RESULT_OK;
 					break;
@@ -404,10 +444,10 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 					std::pair<CompletionTree*, Node*> dupresult = duplicate(pEC->pNode, insertionList);
 					pNewCompletionTree = dupresult.first;
 					// Now add the first concept of the disjunction to the actual completion tree
-					if (pEC->pNode->add(pEC->pConcept->getConcept1(), mpLogger, this))
+					if (pEC->pNode->addConcept(pEC->pConcept->getConcept1(), mpLogger, this))
 						insertionList.push_back(new ExpandableConcept(pEC->pNode, pEC->pConcept->getConcept1()));
 					// then add the second concept of the disjunction to the new completion tree
-					if (dupresult.second->add(pEC->pConcept->getConcept2(), mpLogger, dupresult.first))
+					if (dupresult.second->addConcept(pEC->pConcept->getConcept2(), mpLogger, dupresult.first))
 						pNewCompletionTree->addExpandableConcept(new ExpandableConcept(dupresult.second, pEC->pConcept->getConcept2()));
 					result = EXPANSION_RESULT_OK;
 					break;
@@ -432,10 +472,11 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 						Node* pNode = createNode(pEC->pNode);
 						// Add all ontology concepts to it
 						for (size_t i = 0; i < mpReasoner->getOntologyConcepts().size(); ++i)
-							if (pNode->add(mpReasoner->getOntologyConcepts()[i], mpLogger, this))
+							if (pNode->addConcept(mpReasoner->getOntologyConcepts()[i], mpLogger, this))
 								insertionList.push_back(new ExpandableConcept(pNode, mpReasoner->getOntologyConcepts()[i]));
-						pEC->pNode->roleAccessibilities.insert(SymbolNodePair(role, pNode));
-						if (pNode->add(pQualificationConcept, mpLogger, this))
+						// Make other node accessible from this one through this role
+						pEC->pNode->addRoleAccessibility(role, pNode);
+						if (pNode->addConcept(pQualificationConcept, mpLogger, this))
 							insertionList.push_back(new ExpandableConcept(pNode, pQualificationConcept));
 
 						if (mpLogger)
@@ -453,7 +494,7 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 					Node::RelationMapRange range = pEC->pNode->roleAccessibilities.equal_range(role);
 					for (Node::RelationMapIterator it = range.first; it != range.second; ++it)
 					{
-						if (it->second->add(pQualificationConcept, mpLogger, this))
+						if (it->second->addConcept(pQualificationConcept, mpLogger, this))
 						{
 							insertionList.push_back(new ExpandableConcept(it->second, pQualificationConcept));
 							result = EXPANSION_RESULT_OK;
@@ -463,7 +504,7 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 						// This applies ONLY if this role is transitive.
 						if (mpReasoner->isTransitive(role))
 						{
-							if (it->second->add(pEC->pConcept, mpLogger, this))
+							if (it->second->addConcept(pEC->pConcept, mpLogger, this))
 							{
 								insertionList.push_back(new ExpandableConcept(it->second, pEC->pConcept));
 								result = EXPANSION_RESULT_OK;
@@ -579,7 +620,6 @@ void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Mo
 			{
 				if (it2->second->pBlockingNode != pNode)
 					pInstance->addRoleAccessibility(it2->first, nodeToInstance[it2->second]);
-
 				else
 					pInstance->addRoleAccessibility(it2->first, pInstance);
 			}

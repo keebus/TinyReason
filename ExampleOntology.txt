@@ -1,6 +1,9 @@
 not (Male and Female);
 Man is Person and Male;
 Woman is Person and Female;
-Parent is hasChild some Person;
+Parent is Person and hasChild some Person;
 Mother is Woman and Parent;
 Father is Man and Parent;
+Grandparent is hasChild some Parent;
+Grandfather is Grandparent and Man;
+Grandmother is Grandparent and Woman;

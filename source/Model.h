@@ -41,9 +41,7 @@ public:
 	void addConcept(const Concept* pConcept) {
 		mConcepts.insert(pConcept);
 	}
-	void addRoleAccessibility(Symbol role, const Instance* pInstance) {
-		mRoleAccessibilities.insert(std::pair<Symbol, const Instance*> (role, pInstance));
-	}
+	void addRoleAccessibility(Symbol role, const Instance* pInstance) ;
 	void dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 private:
 	std::set<const Concept*> mConcepts;
