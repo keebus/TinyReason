@@ -35,7 +35,7 @@ namespace tinyreason
 
 class Individual {
 public:
-	Individual(size_t id) : mID(id) { }
+	Individual(size_t nodeID) : mNodeID(nodeID) { }
 	const std::set<const Concept*>& getConcepts() {
 		return mConcepts;
 	}
@@ -47,7 +47,7 @@ public:
 	void dumpToDOT(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 private:
 	typedef std::multimap<Symbol, const Individual*> RoleAccessibilityMap;
-	size_t mID;
+	size_t mNodeID;
 	std::set<const Concept*> mConcepts;
 	RoleAccessibilityMap mRoleAccessibilities;
 };
@@ -56,7 +56,7 @@ class Model {
 public:
 	Model();
 	~Model();
-	Individual* createIndividual(size_t id = 0);
+	Individual* createIndividual(size_t nodeID);
 	void clear();
 	void dumpToString(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 	void dumpToDOT(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;

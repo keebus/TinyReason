@@ -46,7 +46,7 @@ void Individual::addRoleAccessibility(Symbol role, const Individual* pIndividual
 
 void Individual::dumpToString(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
 {
-	outStream << "Individual " << mID << ":" << endl;
+	outStream << "Individual (node " << mNodeID << ") :" << endl;
 	outStream << "\tTrue concepts:\n";
 
 	bool empty = true;
@@ -62,12 +62,12 @@ void Individual::dumpToString(const SymbolDictionary& symbolDictionary, std::ost
 	outStream << "\tRole accessibilties:\n";
 
 	for (std::multimap<Symbol, const Individual*>::const_iterator it = mRoleAccessibilities.begin(); it != mRoleAccessibilities.end(); ++it)
-		outStream << "\t\tIndividual " << it->second->mID << " through " << symbolDictionary.toName(it->first) << ";\n";
+		outStream << "\t\tIndividual " << it->second->mNodeID << " through " << symbolDictionary.toName(it->first) << ";\n";
 }
 
 void Individual::dumpToDOT(const SymbolDictionary & symbolDictionary, std::ostream & outStream, bool showComplexConcepts) const
 {
-	outStream << (size_t)this << "[label=\"(" << mID << ")|";
+	outStream << (size_t)this << "[label=\"(node " << mNodeID << ")|";
 	for (std::set<const Concept*>::const_iterator it = mConcepts.begin(); it != mConcepts.end(); ++it)
 		if (showComplexConcepts or (*it)->isAtomic())
 			outStream << (*it)->toString(symbolDictionary) << "\\n";
@@ -86,14 +86,9 @@ Model::~Model()
 	deleteAll(mIndividuals);
 }
 
-Individual * Model::createIndividual(size_t id)
+Individual * Model::createIndividual(size_t nodeID)
 {
-	if (id == 0)
-	{
-		id = mFreeIndividualID++;
-		mFreeIndividualID = max(id + 1, mFreeIndividualID);
-	}
-	Individual* pIndividual = new Individual(id);
+	Individual* pIndividual = new Individual(nodeID);
 	mIndividuals.push_back(pIndividual);
 	return pIndividual;
 }
