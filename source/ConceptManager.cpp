@@ -373,7 +373,7 @@ const Concept* ConceptManager::parseSimpleConcept(std::istream& source) const
 {
 	switch (mTokenType)
 	{
-		case T_ANYTHING:
+		case T_THING:
 			nextToken(source);
 			return Concept::getTopConcept();
 
@@ -385,18 +385,10 @@ const Concept* ConceptManager::parseSimpleConcept(std::istream& source) const
 		{
 			Symbol s = mpSymbolDictionary->get(mTokenString);
 			nextToken(source);
-			if (mTokenType == T_SOME || mTokenType == T_SOMETHING)
+			if (mTokenType == T_SOME)
 			{
-				const Concept* pConcept;
-				if (mTokenType == T_SOMETHING)
-				{
-					nextToken(source);
-					pConcept = Concept::getTopConcept();
-				} else
-				{
-					nextToken(source);
-					pConcept = parseSimpleConcept(source);
-				}
+				nextToken(source);
+				const Concept* pConcept = parseSimpleConcept(source);
 				SymbolConceptPairToConceptMap::iterator it = mExistentialConcepts.find(SymbolConceptPair(s, pConcept));
 				if (it == mExistentialConcepts.end())
 					it = mExistentialConcepts.insert(it, SymbolConceptPairToConceptMap::value_type(
@@ -478,33 +470,6 @@ void ConceptManager::nextToken(std::istream & source) const
 						addAndGetNextChar(source);
 						scanElement(source);
 						return;
-					} else if (mCurrChar == 'y')
-					{
-						addAndGetNextChar(source);
-						if (mCurrChar == 't')
-						{
-							addAndGetNextChar(source);
-							if (mCurrChar == 'h')
-							{
-								addAndGetNextChar(source);
-								if (mCurrChar == 'i')
-								{
-									addAndGetNextChar(source);
-									if (mCurrChar == 'n')
-									{
-										addAndGetNextChar(source);
-										if (mCurrChar == 'g')
-										{
-											addAndGetNextChar(source);
-											mTokenType = T_ANYTHING;
-											scanElement(source);
-											return;
-
-										}
-									}
-								}
-							}
-						}
 					}
 				}
 				mTokenType = T_ELEMENT;
@@ -523,34 +488,11 @@ void ConceptManager::nextToken(std::istream & source) const
 						if (mCurrChar == 'e')
 						{
 							addAndGetNextChar(source);
-							if (mCurrChar == 't')
-							{
-								addAndGetNextChar(source);
-								if (mCurrChar == 'h')
-								{
-									addAndGetNextChar(source);
-									if (mCurrChar == 'i')
-									{
-										addAndGetNextChar(source);
-										if (mCurrChar == 'n')
-										{
-											addAndGetNextChar(source);
-											if (mCurrChar == 'g')
-											{
-												addAndGetNextChar(source);
-												mTokenType = T_SOMETHING;
-												scanElement(source);
-												return;
-											}
-										}
-									}
-								}
-							} else
-							{
-								mTokenType = T_SOME;
-								scanElement(source);
-								return;
-							}
+
+							mTokenType = T_SOME;
+							scanElement(source);
+							return;
+
 						}
 					}
 				}
@@ -674,6 +616,24 @@ void ConceptManager::nextToken(std::istream & source) const
 							{
 								addAndGetNextChar(source);
 								mTokenType = T_TRANS;
+								scanElement(source);
+								return;
+							}
+						}
+					}
+				} else if (mCurrChar == 'h')
+				{
+					addAndGetNextChar(source);
+					if (mCurrChar == 'i')
+					{
+						addAndGetNextChar(source);
+						if (mCurrChar == 'n')
+						{
+							addAndGetNextChar(source);
+							if (mCurrChar == 'g')
+							{
+								addAndGetNextChar(source);
+								mTokenType = T_THING;
 								scanElement(source);
 								return;
 							}

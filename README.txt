@@ -28,7 +28,7 @@ Compiling
 
 DL Syntax
 =========
-	* "anything" stands for the top concept, while "nothing" stands for the
+	* "thing" stands for the top concept, while "nothing" stands for the
 		bottom concept.
 	* Any string like (a-zA-Z_0-9)+ is an Atomic Concept thus a Concept.
 	* If A is a concept, then "not A" is a concept.
@@ -36,7 +36,7 @@ DL Syntax
 	* If A and B are concepts, then "A isa B" is a concept that means "B
 		subsumes A" or "if A then B" and "A is B" is a concept that means "A
 		subsumes B and B subsumes A" or "A if and only if B".
-	* "R something" where R is the name of a role form (a-zA-Z_0-9)+ stands for
+	* "R some thing" where R is the name of a role form (a-zA-Z_0-9)+ stands for
 		"<there exists>R.T" in common DL syntax where T is the top concept.
 	* If C is a concept and R is the name of a role, "R some C" means
 		"<there exists>R.C" in common DL syntax.
