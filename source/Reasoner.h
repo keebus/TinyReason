@@ -42,13 +42,13 @@ class Reasoner {
 public:
 	Reasoner(const SymbolDictionary* pSymbolDictionary, const ConceptManager* pConceptManager);
 	~Reasoner();
-	const std::vector<const Concept*> getOntologyConcepts() const {
-		return mOntology;
+	const std::vector<const Concept*> getTboxConcepts() const {
+		return mTbox;
 	}
 	bool isTransitive(Symbol role) const {
 		return mTransitiveRolesSet.find(role) != mTransitiveRolesSet.end();
 	}
-	void setOntologyConcepts(const std::vector<const Concept*>& ontology);
+	void setTboxConcepts(const std::vector<const Concept*>& tbox);
 	void setTransitiveRole(Symbol role);
 	void setTransitiveRoles(const std::vector<Symbol>& transitiveRoles);
 
@@ -153,7 +153,7 @@ private:
 	mutable size_t mCompletionTreeIDCounter;
 	const SymbolDictionary* mpSymbolDictionary;
 	const ConceptManager* mpConceptManager;
-	std::vector<const Concept*> mOntology;
+	std::vector<const Concept*> mTbox;
 	std::set<Symbol> mTransitiveRolesSet;
 };
 

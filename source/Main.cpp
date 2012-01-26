@@ -42,7 +42,7 @@ int main(int argc, char** argv)
 	{
 		if (argc < 4)
 		{
-			cout << "Usage: saltr <options|-> (<ontology-file-name|-) <concepts-to-test-satisfiability>\n\noptions:\n\tv: verbose, shows a log of the precedure of decision;\n\tp: shows parsed concepts (both from ontology and user concept);\n\tc: prints complex concepts in the output model too;" << endl;
+			cout << "Usage: saltr <options|-> (<Tbox-file-name|-) <concepts-to-test-satisfiability>\n\noptions:\n\te: prints the structure of the example model (if found) that satisfies the concept;\n\tv: verbose, shows a log of the precedure of decision;\n\tp: shows parsed concepts (both from tbox and user concept);\n\tc: prints complex concepts in the output model too;\n\tD: dumps the example model (if found) into a GraphViz DOT file \'example.dot\';" << endl;
 			return -1;
 		}
 
@@ -84,15 +84,15 @@ int main(int argc, char** argv)
 
 		if (argv[2][0] != '-')
 		{
-			vector<const Concept*> ontologyConcepts;
+			vector<const Concept*> tboxConcepts;
 			ifstream f(argv[2]);
-			cp.parseAssertions(f, ontologyConcepts, transitiveRoles);
-			r.setOntologyConcepts(ontologyConcepts);
+			cp.parseAssertions(f, tboxConcepts, transitiveRoles);
+			r.setTboxConcepts(tboxConcepts);
 			if (showParsedResult)
 			{
-				cout << "Ontology concepts (optimized and normalized):" << endl;
-				for (size_t i = 0; i < ontologyConcepts.size(); ++i)
-					cout << "\t* " << ontologyConcepts[i]->toString(sd) << endl;
+				cout << "Tbox concepts (optimized and normalized):" << endl;
+				for (size_t i = 0; i < tboxConcepts.size(); ++i)
+					cout << "\t* " << tboxConcepts[i]->toString(sd) << endl;
 			}
 		}
 

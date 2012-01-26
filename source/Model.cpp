@@ -68,9 +68,16 @@ void Individual::dumpToString(const SymbolDictionary& symbolDictionary, std::ost
 void Individual::dumpToDOT(const SymbolDictionary & symbolDictionary, std::ostream & outStream, bool showComplexConcepts) const
 {
 	outStream << (size_t)this << "[label=\"(node " << mNodeID << ")|";
+	bool empty = true;
 	for (std::set<const Concept*>::const_iterator it = mConcepts.begin(); it != mConcepts.end(); ++it)
 		if (showComplexConcepts or (*it)->isAtomic())
+		{
 			outStream << (*it)->toString(symbolDictionary) << "\\n";
+			empty = false;
+		}
+
+	if (empty)
+		outStream << Concept::getTopConcept()->toString(symbolDictionary); // Top concept
 	outStream << "\"];";
 
 	for (std::multimap<Symbol, const Individual*>::const_iterator it = mRoleAccessibilities.begin(); it != mRoleAccessibilities.end(); ++it)

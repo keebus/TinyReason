@@ -40,9 +40,9 @@ mpConceptManager(pConceptManager) { }
 
 Reasoner::~Reasoner() { }
 
-void Reasoner::setOntologyConcepts(const std::vector<const Concept*>& ontology)
+void Reasoner::setTboxConcepts(const std::vector<const Concept*>& tbox)
 {
-	mOntology = ontology;
+	mTbox = tbox;
 }
 
 void Reasoner::setTransitiveRole(Symbol role)
@@ -76,10 +76,10 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 
 	// Make a queue containing expandable concepts
 	if (pLogger)
-		pLogger->log("adding ontology concepts to first individual.");
-	for (size_t i = 0; i < mOntology.size(); ++i)
-		if (pNode->addConcept(mOntology[i], pLogger, pCompletionTree))
-			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, mOntology[i]));
+		pLogger->log("adding tbox concepts to first individual.");
+	for (size_t i = 0; i < mTbox.size(); ++i)
+		if (pNode->addConcept(mTbox[i], pLogger, pCompletionTree))
+			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, mTbox[i]));
 	if (pLogger)
 		pLogger->log("adding testing user concept to first individual.");
 	for (size_t i = 0; i < concepts.size(); ++i)
@@ -466,10 +466,10 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 					{
 						// Then create a new world that contains the qualification concept
 						Node* pNode = createNode(pEC->pNode);
-						// Add all ontology concepts to it
-						for (size_t i = 0; i < mpReasoner->getOntologyConcepts().size(); ++i)
-							if (pNode->addConcept(mpReasoner->getOntologyConcepts()[i], mpLogger, this))
-								insertionList.push_back(new ExpandableConcept(pNode, mpReasoner->getOntologyConcepts()[i]));
+						// Add all tbox concepts to it
+						for (size_t i = 0; i < mpReasoner->getTboxConcepts().size(); ++i)
+							if (pNode->addConcept(mpReasoner->getTboxConcepts()[i], mpLogger, this))
+								insertionList.push_back(new ExpandableConcept(pNode, mpReasoner->getTboxConcepts()[i]));
 						// Make other node accessible from this one through this role
 						pEC->pNode->addRoleAccessibility(role, pNode);
 						if (pNode->addConcept(pQualificationConcept, mpLogger, this))
