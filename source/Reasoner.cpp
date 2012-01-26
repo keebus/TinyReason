@@ -593,7 +593,7 @@ void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Mo
 		Node* pNode = *it;
 		if (!pNode->isBlocked())
 		{
-			Individual * pIndividual = pModel->createIndividual();
+			Individual * pIndividual = pModel->createIndividual(pNode->ID);
 			nodeToIndividual[pNode] = pIndividual;
 			for (set<Symbol>::const_iterator it2 = pNode->positiveAtomicConcepts.begin(); it2 != pNode->positiveAtomicConcepts.end(); ++it2)
 				pIndividual->addConcept(pConceptManager->getAtomicConcept(true, *it2));

@@ -67,7 +67,7 @@ void Individual::dumpToString(const SymbolDictionary& symbolDictionary, std::ost
 
 void Individual::dumpToDOT(const SymbolDictionary & symbolDictionary, std::ostream & outStream, bool showComplexConcepts) const
 {
-	outStream << (size_t)this << "[label=\"";
+	outStream << (size_t)this << "[label=\"(" << mID << ")|";
 	for (std::set<const Concept*>::const_iterator it = mConcepts.begin(); it != mConcepts.end(); ++it)
 		if (showComplexConcepts or (*it)->isAtomic())
 			outStream << (*it)->toString(symbolDictionary) << "\\n";
@@ -86,9 +86,14 @@ Model::~Model()
 	deleteAll(mIndividuals);
 }
 
-Individual * Model::createIndividual()
+Individual * Model::createIndividual(size_t id)
 {
-	Individual* pIndividual = new Individual(mFreeIndividualID++);
+	if (id == 0)
+	{
+		id = mFreeIndividualID++;
+		mFreeIndividualID = max(id + 1, mFreeIndividualID);
+	}
+	Individual* pIndividual = new Individual(id);
 	mIndividuals.push_back(pIndividual);
 	return pIndividual;
 }

@@ -56,7 +56,7 @@ class Model {
 public:
 	Model();
 	~Model();
-	Individual* createIndividual();
+	Individual* createIndividual(size_t id = 0);
 	void clear();
 	void dumpToString(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 	void dumpToDOT(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
