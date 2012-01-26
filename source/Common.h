@@ -52,7 +52,7 @@ class ConceptManager;
 class Reasoner;
 class SymbolDictionary;
 class Model;
-class Instance;
+class Individual;
 
 // Base classes
 

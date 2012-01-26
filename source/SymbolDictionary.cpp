@@ -38,7 +38,7 @@ mNextFreeSymbol(0)
 {
 	// Define TOP and BOTTOM strings
 	get("nothing");
-	get("anything");
+	get("thing");
 }
 
 SymbolDictionary::~SymbolDictionary() { }

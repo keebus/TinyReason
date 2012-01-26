@@ -76,12 +76,12 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 
 	// Make a queue containing expandable concepts
 	if (pLogger)
-		pLogger->log("adding ontology concepts to first instance.");
+		pLogger->log("adding ontology concepts to first individual.");
 	for (size_t i = 0; i < mOntology.size(); ++i)
 		if (pNode->add(mOntology[i], pLogger, pCompletionTree))
 			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, mOntology[i]));
 	if (pLogger)
-		pLogger->log("adding testing user concept to first instance.");
+		pLogger->log("adding testing user concept to first individual.");
 	for (size_t i = 0; i < concepts.size(); ++i)
 		if (pNode->add(concepts[i], pLogger, pCompletionTree))
 			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, concepts[i]));
@@ -549,21 +549,21 @@ std::pair<Reasoner::CompletionTree*, Reasoner::Node*> Reasoner::CompletionTree::
 void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Model* pModel) const
 {
 	pModel->clear();
-	map<Node*, Instance*> nodeToInstance;
+	map<Node*, Individual*> nodeToIndividual;
 	// First create all instaces
 	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
 	{
 		Node* pNode = *it;
 		if (!pNode->isBlocked())
 		{
-			Instance * pInstance = pModel->createInstance();
-			nodeToInstance[pNode] = pInstance;
+			Individual * pIndividual = pModel->createIndividual();
+			nodeToIndividual[pNode] = pIndividual;
 			for (set<Symbol>::const_iterator it2 = pNode->positiveAtomicConcepts.begin(); it2 != pNode->positiveAtomicConcepts.end(); ++it2)
-				pInstance->addConcept(pConceptManager->getAtomicConcept(true, *it2));
+				pIndividual->addConcept(pConceptManager->getAtomicConcept(true, *it2));
 			for (set<Symbol>::const_iterator it2 = pNode->negativeAtomicConcepts.begin(); it2 != pNode->negativeAtomicConcepts.end(); ++it2)
-				pInstance->addConcept(pConceptManager->getAtomicConcept(false, *it2));
+				pIndividual->addConcept(pConceptManager->getAtomicConcept(false, *it2));
 			for (set<const Concept*>::const_iterator it2 = pNode->complexConcepts.begin(); it2 != pNode->complexConcepts.end(); ++it2)
-				pInstance->addConcept(*it2);
+				pIndividual->addConcept(*it2);
 		}
 	}
 
@@ -573,15 +573,14 @@ void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Mo
 		Node* pNode = *it;
 		if (!pNode->isBlocked())
 		{
-			Instance * pInstance = nodeToInstance[pNode];
+			Individual * pIndividual = nodeToIndividual[pNode];
 
 			for (multimap<Symbol, Node*>::const_iterator it2 = pNode->roleAccessibilities.begin(); it2 != pNode->roleAccessibilities.end(); ++it2)
 			{
 				if (it2->second->pBlockingNode != pNode)
-					pInstance->addRoleAccessibility(it2->first, nodeToInstance[it2->second]);
-
+					pIndividual->addRoleAccessibility(it2->first, nodeToIndividual[it2->second]);
 				else
-					pInstance->addRoleAccessibility(it2->first, pInstance);
+					pIndividual->addRoleAccessibility(it2->first, pIndividual);
 			}
 		}
 	}

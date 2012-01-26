@@ -34,7 +34,28 @@ using namespace std;
 namespace tinyreason
 {
 
-void Instance::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
+void Individual::dumpToString(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
+{
+	outStream << "Individual " << mID << ":" << endl;
+	outStream << "\tTrue concepts:\n";
+
+	bool empty = true;
+	for (std::set<const Concept*>::const_iterator it = mConcepts.begin(); it != mConcepts.end(); ++it)
+		if (showComplexConcepts or (*it)->isAtomic())
+		{
+			outStream << "\t\t" << (*it)->toString(symbolDictionary) << "\n";
+			empty = false;
+		}
+	if (empty)
+		outStream << "\t\t" << Concept::getTopConcept()->toString(symbolDictionary) << "\n"; // Top concept
+
+	outStream << "\tRole accessibilties:\n";
+
+	for (std::multimap<Symbol, const Individual*>::const_iterator it = mRoleAccessibilities.begin(); it != mRoleAccessibilities.end(); ++it)
+		outStream << "\t\tIndividual " << it->second->mID << " through " << symbolDictionary.toName(it->first) << ";\n";
+}
+
+void Individual::dumpToDOT(const SymbolDictionary & symbolDictionary, std::ostream & outStream, bool showComplexConcepts) const
 {
 	outStream << (size_t)this << "[label=\"";
 	for (std::set<const Concept*>::const_iterator it = mConcepts.begin(); it != mConcepts.end(); ++it)
@@ -42,38 +63,42 @@ void Instance::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostr
 			outStream << (*it)->toString(symbolDictionary) << "\\n";
 	outStream << "\"];";
 
-	for (std::multimap<Symbol, const Instance*>::const_iterator it = mRoleAccessibilities.begin(); it != mRoleAccessibilities.end(); ++it)
+	for (std::multimap<Symbol, const Individual*>::const_iterator it = mRoleAccessibilities.begin(); it != mRoleAccessibilities.end(); ++it)
 		outStream << (size_t)this << " -> " << (size_t) it->second << "[label=\"" << symbolDictionary.toName(it->first) << "\"];";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Model::Model() { }
+Model::Model() : mFreeIndividualID(1) { }
 
 Model::~Model()
 {
-	deleteAll(mInstances);
+	deleteAll(mIndividuals);
 }
 
-Instance* Model::createInstance()
+Individual * Model::createIndividual()
 {
-	Instance* pInstance = new Instance;
-	mInstances.push_back(pInstance);
-	return pInstance;
+	Individual* pIndividual = new Individual(mFreeIndividualID++);
+	mIndividuals.push_back(pIndividual);
+	return pIndividual;
 }
 
 void Model::clear()
 {
-	deleteAll(mInstances);
+	deleteAll(mIndividuals);
 }
 
-void Model::dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
+void Model::dumpToString(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
+{
+	for (size_t i = 0; i < mIndividuals.size(); ++i)
+		mIndividuals[i]->dumpToString(symbolDictionary, outStream, showComplexConcepts);
+}
+
+void Model::dumpToDOT(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
 {
 	outStream << "digraph {rankdir=TB;node[shape=record];";
-
-	for (size_t i = 0; i < mInstances.size(); ++i)
-		mInstances[i]->dumpToDOTFile(symbolDictionary, outStream, showComplexConcepts);
-
+	for (size_t i = 0; i < mIndividuals.size(); ++i)
+		mIndividuals[i]->dumpToDOT(symbolDictionary, outStream, showComplexConcepts);
 	outStream << "}";
 }
 

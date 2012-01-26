@@ -46,7 +46,8 @@ int main(int argc, char** argv)
 			return -1;
 		}
 
-		bool verbose = false, showParsedResult = false, showComplexConcepts = false;
+		bool verbose = false, showParsedResult = false, showComplexConcepts = false,
+			dumpToDOT = false;
 		string stroptions(argv[1]);
 		for (size_t i = 0; i < stroptions.size(); ++i)
 		{
@@ -62,6 +63,9 @@ int main(int argc, char** argv)
 					break;
 				case 'c': // Shows complex concepts
 					showComplexConcepts = true;
+					break;
+				case 'D':
+					dumpToDOT = true;
 					break;
 			}
 		}
@@ -117,9 +121,15 @@ int main(int argc, char** argv)
 		Model example;
 		if (r.isSatisfiable(concepts, &example, verbose))
 		{
-			ofstream outFile("example.dot");
-			example.dumpToDOTFile(sd, outFile, showComplexConcepts);
-			cout << "RESULT: Conjunction of concepts is satisfiable! (example dumped to example.dot)" << endl;
+			cout << "RESULT: Conjunction of concepts is satisfiable!" << endl;
+			cout << "Example model: " << endl;
+			example.dumpToString(sd, std::cout, showComplexConcepts);
+			if (dumpToDOT)
+			{
+				ofstream outFile("example.dot");
+				example.dumpToDOT(sd, outFile, showComplexConcepts);
+				cout << "Example model dumped DOT file dumped to example.dot." << endl;
+			}
 
 		} else
 			cout << "RESULT: Conjunction of concepts is not satisfiable!" << endl;

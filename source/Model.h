@@ -33,32 +33,37 @@
 namespace tinyreason
 {
 
-class Instance {
+class Individual {
 public:
+	Individual(size_t id) : mID(id) { }
 	const std::set<const Concept*>& getConcepts() {
 		return mConcepts;
 	}
 	void addConcept(const Concept* pConcept) {
 		mConcepts.insert(pConcept);
 	}
-	void addRoleAccessibility(Symbol role, const Instance* pInstance) {
-		mRoleAccessibilities.insert(std::pair<Symbol, const Instance*> (role, pInstance));
+	void addRoleAccessibility(Symbol role, const Individual* pIndividual) {
+		mRoleAccessibilities.insert(std::pair<Symbol, const Individual*> (role, pIndividual));
 	}
-	void dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
+	void dumpToString(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
+	void dumpToDOT(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 private:
+	size_t mID;
 	std::set<const Concept*> mConcepts;
-	std::multimap<Symbol, const Instance*> mRoleAccessibilities;
+	std::multimap<Symbol, const Individual*> mRoleAccessibilities;
 };
 
 class Model {
 public:
 	Model();
 	~Model();
-	Instance* createInstance();
+	Individual* createIndividual();
 	void clear();
-	void dumpToDOTFile(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
+	void dumpToString(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
+	void dumpToDOT(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 private:
-	std::vector<Instance*> mInstances;
+	size_t mFreeIndividualID;
+	std::vector<Individual*> mIndividuals;
 };
 
 

@@ -93,7 +93,7 @@ private:
 		ExpandableConcept(Node* pNode, const Concept * pConcept) :
 		pNode(pNode), pConcept(pConcept) { }
 
-		/** Heuristic for choosing the next complex concept to expand in an instance of a completion tree */
+		/** Heuristic for choosing the next complex concept to expand in an individual of a completion tree */
 		struct Compare {
 			bool operator()(const ExpandableConcept* pEC1, const ExpandableConcept * pEC2) const;
 		};
