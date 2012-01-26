@@ -88,7 +88,7 @@ std::string Concept::toString(const SymbolDictionary& sd) const
 		case TYPE_DISJUNCTION:
 			return "(" + mpConcept1->toString(sd) + " or " + mpConcept2->toString(sd) + ")";
 		case TYPE_EXISTENTIAL_RESTRICTION:
-			return sd.toName(mRole) + " some" +  mpConcept2->toString(sd);
+			return sd.toName(mRole) + " some " +  mpConcept2->toString(sd);
 		case TYPE_UNIVERSAL_RESTRICTION:
 			return sd.toName(mRole) + " only " + mpConcept2->toString(sd);
 		default:

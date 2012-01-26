@@ -62,10 +62,12 @@ Usage
 		tc (options|-) (ontology_file|-) <concept to evaluate>
 	
 	The following options are supported:
+		e: will print the structure of an example model if concept is satisfiable.
 		v: verbose, will force the Reasoner to print out the log of all the
 			operations done.
 		p: parser output, will print the result of the parsing of the ontology
 			concepts and the given user concept.
+		D: will print the structure of an example model if concept is satisfiable in DOT format into the file "example.dot".
 		c: dumps non atomic concepts too into the example model.
 		-: no option (mandatory if you specify no option).
 	

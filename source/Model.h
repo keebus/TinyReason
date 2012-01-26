@@ -42,15 +42,14 @@ public:
 	void addConcept(const Concept* pConcept) {
 		mConcepts.insert(pConcept);
 	}
-	void addRoleAccessibility(Symbol role, const Individual* pIndividual) {
-		mRoleAccessibilities.insert(std::pair<Symbol, const Individual*> (role, pIndividual));
-	}
+	void addRoleAccessibility(Symbol role, const Individual* pIndividual);
 	void dumpToString(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 	void dumpToDOT(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts = false) const;
 private:
+	typedef std::multimap<Symbol, const Individual*> RoleAccessibilityMap;
 	size_t mID;
 	std::set<const Concept*> mConcepts;
-	std::multimap<Symbol, const Individual*> mRoleAccessibilities;
+	RoleAccessibilityMap mRoleAccessibilities;
 };
 
 class Model {

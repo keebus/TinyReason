@@ -34,6 +34,16 @@ using namespace std;
 namespace tinyreason
 {
 
+void Individual::addRoleAccessibility(Symbol role, const Individual* pIndividual)
+{
+	typedef std::pair<RoleAccessibilityMap::iterator, RoleAccessibilityMap::iterator> Range;
+	const Range& range = mRoleAccessibilities.equal_range(role);
+	for (Range::first_type it = range.first; it != range.second; ++it)
+		if (it->second == pIndividual)
+			return;
+	mRoleAccessibilities.insert(range.first, RoleAccessibilityMap::value_type(role, pIndividual));
+}
+
 void Individual::dumpToString(const SymbolDictionary& symbolDictionary, std::ostream& outStream, bool showComplexConcepts) const
 {
 	outStream << "Individual " << mID << ":" << endl;

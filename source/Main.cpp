@@ -46,7 +46,10 @@ int main(int argc, char** argv)
 			return -1;
 		}
 
-		bool verbose = false, showParsedResult = false, showComplexConcepts = false,
+		bool printExampleModelStructure = false,
+			verbose = false,
+			showParsedResult = false,
+			showComplexConcepts = false,
 			dumpToDOT = false;
 		string stroptions(argv[1]);
 		for (size_t i = 0; i < stroptions.size(); ++i)
@@ -54,6 +57,9 @@ int main(int argc, char** argv)
 			switch (stroptions[i])
 			{
 				case '-':
+					break;
+				case 'e': // Example model structure on stdout
+					printExampleModelStructure = true;
 					break;
 				case 'v': // Verbose
 					verbose = true;
@@ -122,8 +128,11 @@ int main(int argc, char** argv)
 		if (r.isSatisfiable(concepts, &example, verbose))
 		{
 			cout << "RESULT: Conjunction of concepts is satisfiable!" << endl;
-			cout << "Example model: " << endl;
-			example.dumpToString(sd, std::cout, showComplexConcepts);
+			if (printExampleModelStructure)
+			{
+				cout << "Example model: " << endl;
+				example.dumpToString(sd, std::cout, showComplexConcepts);
+			}
 			if (dumpToDOT)
 			{
 				ofstream outFile("example.dot");

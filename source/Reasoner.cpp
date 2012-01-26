@@ -225,12 +225,8 @@ bool Reasoner::Node::addConcept(const Concept * pConcept, const Logger* pLogger,
 
 void Reasoner::Node::addRoleAccessibility(Symbol role, Node* pToOtherNode)
 {
-	//	typedef std::pair<std::multimap<Symbol, Node*>::iterator, std::multimap<Symbol, Node*>::iterator> Range;
-	//	const Range& range = roleAccessibilities.equal_range(role);
-	//	for (Range::first_type it = range.first; it != range.second; ++it)
-	//		if (it->second == pToOtherNode)
-	//			return;
-	//	roleAccessibilities.insert(range.first, std::pair<Symbol, Node*> (role, pToOtherNode));
+	// NOTE: This implementation assumes that a role accessibility is made always
+	// to new nodes.
 	roleAccessibilities.insert(SymbolNodePair(role, pToOtherNode));
 }
 
@@ -590,7 +586,7 @@ std::pair<Reasoner::CompletionTree*, Reasoner::Node*> Reasoner::CompletionTree::
 void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Model* pModel) const
 {
 	pModel->clear();
-	map<Node*, Individual*> nodeToIndividual;
+	map<const Node*, Individual*> nodeToIndividual;
 	// First create all instaces
 	for (NodeSet::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it)
 	{
@@ -618,10 +614,10 @@ void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Mo
 
 			for (multimap<Symbol, Node*>::const_iterator it2 = pNode->roleAccessibilities.begin(); it2 != pNode->roleAccessibilities.end(); ++it2)
 			{
-				if (it2->second->pBlockingNode != pNode)
-					pIndividual->addRoleAccessibility(it2->first, nodeToIndividual[it2->second]);
+				if (it2->second->isBlocked())
+					pIndividual->addRoleAccessibility(it2->first, nodeToIndividual[it2->second->pBlockingNode]);
 				else
-					pIndividual->addRoleAccessibility(it2->first, pIndividual);
+					pIndividual->addRoleAccessibility(it2->first, nodeToIndividual[it2->second]);
 			}
 		}
 	}
