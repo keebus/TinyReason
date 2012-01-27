@@ -1,6 +1,7 @@
 not (Male and Female);
 Man is Person and Male;
 Woman is Person and Female;
+Person is Man or Woman;
 Parent is Person and hasChild some Person;
 Mother is Woman and Parent;
 Father is Man and Parent;
