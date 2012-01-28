@@ -75,13 +75,13 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 	Node* pNode = pCompletionTree->createNode(0);
 
 	// Make a queue containing expandable concepts
-	if (pLogger)
-		pLogger->log("adding tbox concepts to first individual.");
+	if (!mTbox.empty() && pLogger)
+		pLogger->log("Adding Tbox concepts into first node label.");
 	for (size_t i = 0; i < mTbox.size(); ++i)
 		if (pNode->addConcept(mTbox[i], pLogger, pCompletionTree))
 			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, mTbox[i]));
 	if (pLogger)
-		pLogger->log("adding testing user concept to first individual.");
+		pLogger->log("Adding testing user concept into the first node label.");
 	for (size_t i = 0; i < concepts.size(); ++i)
 		if (pNode->addConcept(concepts[i], pLogger, pCompletionTree))
 			pCompletionTree->addExpandableConcept(new ExpandableConcept(pNode, concepts[i]));
@@ -97,7 +97,7 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 		// Take the first available Completion Tree in the open list
 		pCompletionTree = completionTrees.front();
 		if (pLogger)
-			pLogger->log(pCompletionTree, "this Completion Tree chosen to be expanded.");
+			pLogger->log("Completion Tree " + toString(pCompletionTree->getID()) + " chosen to be expanded.");
 		// Let the completion tree expand
 		CompletionTree* pNewCompletionTree = 0;
 		ExpansionResult result = pCompletionTree->expand(pNewCompletionTree);
@@ -112,7 +112,7 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 			case EXPANSION_RESULT_NOT_POSSIBLE:
 				// Yes! We found a model as this completion tree cannot be further expanded.
 				if (pLogger)
-					pLogger->log(pCompletionTree, "expansion could not be possible, model found!");
+					pLogger->log(pCompletionTree, "expansion not be possible, model found!");
 				foundCompleteCompletionTree = true;
 				break;
 
@@ -197,7 +197,7 @@ bool Reasoner::Node::addConcept(const Concept * pConcept, const Logger* pLogger,
 		if (!pBlockingNode->contains(pConcept))
 		{
 			if (pLogger)
-				pLogger->log(pLoggingCT, this, pConcept, "blocking node of this node does not contain just added concept, thus it can be nomore blocked by it.");
+				pLogger->log(pLoggingCT, this, pConcept, " not in present in blocking node (node " + toString(pBlockingNode->ID) + ") label therefore this node can be no more blocked by it.");
 			// Our blocking node does NOT contain the newly added concept thus we
 			// must look for another node whose set of concepts contains this ones'
 			pBlockingNode = pBlockingNode->pParentNode;
@@ -331,7 +331,7 @@ Reasoner::CompletionTree::CompletionTree(const Reasoner* pReasoner, const Logger
 mpReasoner(pReasoner), mID(pReasoner->mCompletionTreeIDCounter++), mpLogger(pLogger)
 {
 	if (mpLogger)
-		mpLogger->log(this, "created.");
+		mpLogger->log("Completion Tree " + toString(mID) + " created.");
 }
 
 Reasoner::CompletionTree::~CompletionTree()
@@ -355,7 +355,7 @@ Reasoner::Node* Reasoner::CompletionTree::createNode(Node* pParent)
 	mNodes.insert(pNode);
 
 	if (mpLogger)
-		mpLogger->log(this, pNode, "created.");
+		mpLogger->log("Node " + toString(mID) + "." + toString(pNode->ID) + " created.");
 
 	return pNode;
 }
@@ -434,7 +434,7 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 				case Concept::TYPE_DISJUNCTION:
 				{
 					if (mpLogger)
-						mpLogger->log(this, pEC->pNode, pEC->pConcept, "adding the first subconcept into this Completion Tree, the second into its duplication.");
+						mpLogger->log(this, pEC->pNode, pEC->pConcept, "adding the first subconcept into this Completion Tree, the second one into its duplication.");
 					// We now need to duplicate the incoming completion tree.
 					// This will clone the completion tree returning the new completion tree and the corresponding node to the one given.
 					std::pair<CompletionTree*, Node*> dupresult = duplicate(pEC->pNode, insertionList);
@@ -460,7 +460,7 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 					{
 						conceptFound = it->second->contains(pQualificationConcept);
 						if (mpLogger && conceptFound)
-							mpLogger->log(this, it->second, pQualificationConcept, "qualification found, no new node created.");
+							mpLogger->log(this, it->second, "qualification concept \"" + pQualificationConcept->toString(*mpReasoner->mpSymbolDictionary) + "\" found, no new node created.");
 					}
 					if (!conceptFound)
 					{
@@ -476,7 +476,7 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 							insertionList.push_back(new ExpandableConcept(pNode, pQualificationConcept));
 
 						if (mpLogger)
-							mpLogger->log(this, pNode, pQualificationConcept, "adding this qualification concept to this new node.");
+							mpLogger->log(this, pNode, "adding qualification concept \"" + pQualificationConcept->toString(*mpReasoner->mpSymbolDictionary) + "\" to this new node.");
 					}
 					result = EXPANSION_RESULT_OK;
 					break;
@@ -495,7 +495,7 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 							insertionList.push_back(new ExpandableConcept(it->second, pQualificationConcept));
 							result = EXPANSION_RESULT_OK;
 							if (mpLogger)
-								mpLogger->log(this, it->second, pQualificationConcept, "adding this qualification concept to this existing node.");
+								mpLogger->log(this, it->second, "adding qualification concept \"" + pQualificationConcept->toString(*mpReasoner->mpSymbolDictionary) + "\" to this existing node.");
 						}
 						// This applies ONLY if this role is transitive.
 						if (mpReasoner->isTransitive(role))
@@ -635,19 +635,17 @@ void Reasoner::Logger::log(const std::string& message) const
 
 void Reasoner::Logger::log(const CompletionTree* pCP, const std::string& message) const
 {
-	mOutStream << "> " << "In CT " << pCP->getID() << ": " << message << endl;
+	mOutStream << "> " << "In Completion Tree " << pCP->getID() << ": " << message << endl;
 }
 
 void Reasoner::Logger::log(const CompletionTree* pCP, const Node* pNode, const std::string& message) const
 {
-
-	mOutStream << "> " << "In CT " << pCP->getID() << ", in node " << pNode->ID << ": " << message << endl;
+	mOutStream << "> " << "In node " << pCP->getID() << "." << pNode->ID << ": " << message << endl;
 }
 
 void Reasoner::Logger::log(const CompletionTree* pCP, const Node* pNode, const Concept* pConcept, const std::string& message) const
 {
-
-	mOutStream << "> " << "In CT " << pCP->getID() << ", in node " << pNode->ID << ": concept " << pConcept->toString(*mpSymbolDictionary) << " " << message << endl;
+	mOutStream << "> " << "In node " << pCP->getID() << "." << pNode->ID << ": concept \"" << pConcept->toString(*mpSymbolDictionary) << "\" " << message << endl;
 }
 
 }

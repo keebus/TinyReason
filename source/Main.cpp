@@ -141,7 +141,7 @@ int main(int argc, char** argv)
 			}
 
 		} else
-			cout << "RESULT: Conjunction of concepts is not satisfiable!" << endl;
+			cout << "RESULT: Conjunction of concepts is NOT satisfiable!" << endl;
 
 		return 0;
 
