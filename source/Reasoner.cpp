@@ -137,7 +137,7 @@ bool Reasoner::isSatisfiable(const std::vector<const Concept*>& concepts, Model*
 	} while (!completionTrees.empty() && !foundCompleteCompletionTree);
 
 	cout << "Number of complete trees: " + toString(completeTreeCount) + ". Number of incomplete trees: " + toString(completionTrees.size()) +
-		". (total " + toString(completeTreeCount + completionTrees.size()) + ").\n";
+	   ". (total " + toString(completeTreeCount + completionTrees.size()) + ").\n";
 
 	// Now check results
 	if (completionTrees.empty())
@@ -320,11 +320,19 @@ bool Reasoner::ExpandableConcept::Compare::operator ()(const ExpandableConcept* 
 
 bool Reasoner::CompletionTree::ComparePtrs::operator ()(const CompletionTree* pCT1, const CompletionTree* pCT2) const
 {
-	// True means CT1 is worse than CT2
-	float conceptCount1 = pCT1->getConceptCount();
-	float conceptCount2 = pCT2->getConceptCount();
-
-	return conceptCount1 / pCT1->mNodes.size() < conceptCount2 / pCT2->mNodes.size();
+	//	// True means CT1 is worse than CT2
+	// Compare score, higher is worse
+	if (pCT1->mScore < pCT2->mScore)
+		return false;
+	else if (pCT1->mScore > pCT2->mScore)
+		return true;
+	else
+	{
+		// Then if same, compare the #concept over #nodes ratio
+		float conceptCount1 = pCT1->getConceptCount();
+		float conceptCount2 = pCT2->getConceptCount();
+		return conceptCount1 / pCT1->mNodes.size() < conceptCount2 / pCT2->mNodes.size();
+	}
 }
 
 Reasoner::CompletionTree::CompletionTree(const Reasoner* pReasoner, const Logger* pLogger) :
@@ -364,6 +372,8 @@ void Reasoner::CompletionTree::addExpandableConcept(const ExpandableConcept* pEx
 {
 	mExpandableConceptQueue.push_back(pExpandableConcept);
 	push_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
+	// Update score
+	mScore += getConceptScore(pExpandableConcept->pConcept);
 }
 
 Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNewCompletionTree)
@@ -382,6 +392,7 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 		pop_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
 		pEC = mExpandableConceptQueue.back();
 		mExpandableConceptQueue.pop_back();
+		mScore -= getConceptScore(pEC->pConcept);
 
 		skipThisExpandableConcept = true; //by default
 
@@ -533,6 +544,8 @@ Reasoner::ExpansionResult Reasoner::CompletionTree::expand(CompletionTree*& pNew
 	{
 		mExpandableConceptQueue.push_back(insertionList.back());
 		insertionList.pop_back();
+		// Add back the score
+		mScore += getConceptScore(pEC->pConcept);
 	}
 	// Restore the heap structure
 	make_heap(mExpandableConceptQueue.begin(), mExpandableConceptQueue.end(), ExpandableConcept::Compare());
@@ -568,15 +581,15 @@ std::pair<Reasoner::CompletionTree*, Reasoner::Node*> Reasoner::CompletionTree::
 	// Finally duplicate the expandable list into the new Completion Tree
 	for (size_t i = 0; i < mExpandableConceptQueue.size(); ++i)
 		pCompletionTree->mExpandableConceptQueue.push_back(new ExpandableConcept(
-		nodeToNodeMap[mExpandableConceptQueue[i]->pNode],
-		mExpandableConceptQueue[i]->pConcept
-		));
+	   nodeToNodeMap[mExpandableConceptQueue[i]->pNode],
+	   mExpandableConceptQueue[i]->pConcept
+	   ));
 	// Add to be inserted ECs
 	for (list<const ExpandableConcept*>::const_iterator it = insertionList.begin(); it != insertionList.end(); ++it)
 		pCompletionTree->mExpandableConceptQueue.push_back(new ExpandableConcept(
-		nodeToNodeMap[(*it)->pNode],
-		(*it)->pConcept
-		));
+	   nodeToNodeMap[(*it)->pNode],
+	   (*it)->pConcept
+	   ));
 	// Make the heap structure
 	make_heap(pCompletionTree->mExpandableConceptQueue.begin(), pCompletionTree->mExpandableConceptQueue.end(), ExpandableConcept::Compare());
 
@@ -621,6 +634,24 @@ void Reasoner::CompletionTree::toModel(const ConceptManager* pConceptManager, Mo
 			}
 		}
 	}
+}
+
+size_t Reasoner::CompletionTree::getConceptScore(const Concept * pConcept)
+{
+	switch (pConcept->getType())
+	{
+		case Concept::TYPE_POSITIVE_ATOMIC:
+		case Concept::TYPE_NEGATIVE_ATOMIC:
+			return 1;
+		case Concept::TYPE_CONJUNCTION:
+		case Concept::TYPE_UNIVERSAL_RESTRICTION:
+			return 5;
+		case Concept::TYPE_EXISTENTIAL_RESTRICTION:
+			return 10;
+		case Concept::TYPE_DISJUNCTION:
+			return 20;
+	}
+	return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -126,15 +126,17 @@ private:
 		ExpansionResult expand(CompletionTree*& pNewCompletionTree);
 		std::pair<CompletionTree*, Node*> duplicate(const Node* pNode, const std::list<const ExpandableConcept*>& insertionList) const;
 		void toModel(const ConceptManager* pConceptManager, Model* pModel) const;
-
 	private:
+		static size_t getConceptScore(const Concept * pConcept);
+
 		const Reasoner* mpReasoner;
 		size_t mID;
 		const Logger* mpLogger;
-
 		typedef std::set<Node*> NodeSet;
 		NodeSet mNodes;
 		std::vector<const ExpandableConcept*> mExpandableConceptQueue;
+		size_t mScore;
+
 	};
 
 	class Logger {
