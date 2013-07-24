@@ -1,33 +1,31 @@
-*******************************************************************************
-*                                  TinyReason                                 *
-* A very tiny Description Logic Reasoner for the S logic (ALC + trans roles). *
-*                   Copyright (R) 2012 Canio Massimo Tristano                 *
-*                             Politecnico di Milano                           *
-*******************************************************************************
+                                   TinyReason
+===============================================================================
+A very tiny Description Logic Reasoner for the S logic (ALC + trans roles).
 
 License
-=======
-	This software is licensed under the BSD-3 license. You will find a copy of
-	this license in the LICENSE.txt file contained in this source distribution.
+-------
+This software is licensed under the BSD-3 license. You will find a copy of this
+license in the LICENSE.txt file contained in this source distribution.
 
 Compiling
-=========
-	To compile the source code you will require GNU Make and GNU GCC (any
-	version	will do fine); on Windows, MinGW is thus required.
-		To compile for Windows type
-			make WIN32=1
-		To compile for any other platform (Linux, OSX) simply type
-			make
+---------
+To compile the source code you will require GNU Make and GNU GCC (any version
+will do fine); on Windows, MinGW is thus required.
 
-	You could even use build.bat script file to compile for Windows or build.sh
-	to compile for the other platforms.
+To compile for Windows type
+    make WIN32=1
 
-	The source code has no dependecies (apart from stdlibc++) and can be
-	compiled with any compiler, but you will have to make your own makefile for
-	that.
+To compile for any other platform (Linux, OSX) simply type
+    make
+
+You could even use build.bat script file to compile for Windows or build.sh to
+compile for the other platforms.
+
+The source code has no dependecies (apart from stdlibc++) and can be compiled
+with any compiler, but you will have to make your own makefile for that.
 
 DL Syntax
-=========
+---------
 	* "thing" stands for the top concept, while "nothing" stands for the
 		bottom concept.
 	* Any string like (a-zA-Z_0-9)+ is an Atomic Concept thus a Concept.
@@ -56,8 +54,9 @@ DL Syntax
 	separated by at least one space and ending with a semicolon.
 	Example
 		trans greaterThan equalTo;
+
 Usage
-=====
+-----
 	The tc executable must be used giving the following arguments:
 		tc (options|-) (ontology_file|-) <concept to evaluate>
 	
@@ -81,7 +80,7 @@ Usage
 	the concept to evaluate.
 	
 Reasoning Services
-==================
+------------------
 	* Concept satisfiability: pass any option and '-' as ontology argument then
 	specify the concept to evaluate. The reasoner will answer whether it is
 	satisfiable or not. If so, it will dump a model example into the file
@@ -100,7 +99,7 @@ Reasoning Services
 	Concept2 subsumes Concept1 within the given ontology.
 
 APPENDIX
-========
+--------
 	To convert the DOT file to a PNG image file you can use the following
 	command (granted you have Graphviz installed on your machine):
 		cat example.dot | dot -Tpng > example.png
