@@ -47,13 +47,13 @@ DL Syntax
 
   Examples:
 
-    Man and Woman isa nothing;    or simply "not(Man and Woman)")
+    Man and Woman isa nothing;  or simply "not(Man and Woman)")
     Person is Man or Woman;
     Woman is Person and Female;
     Man is Person and Male;
     Parent is hasChild something;
     Mother is Woman and Parent;
-  
+    
   To specify a transitive role, use the "trans" keyword followed by role names
   separated by at least one space and ending with a semicolon.
   Example
