@@ -42,11 +42,11 @@ DL Syntax
     "<there exists>R.C" in common DL syntax.
   * If C is a concept and R is the name of a role, "R only C" means
     "<for all>R.C" in common DL syntax.
-  * If A is a concept, then "(A)" is a concept.
-  
+  * If A is a concept, then "(A)" is a concept.  
+
   Examples:
-  
-    Man and Woman isa nothing;         or simply "not(Man and Woman)")
+
+    Man and Woman isa nothing;    or simply "not(Man and Woman)")
     Person is Man or Woman;
     Woman is Person and Female;
     Man is Person and Male;
