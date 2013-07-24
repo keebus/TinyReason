@@ -44,8 +44,8 @@ DL Syntax
     "<for all>R.C" in common DL syntax.
   * If A is a concept, then "(A)" is a concept.  
 
-
-  Examples:
+Example
+-------
 
     Man and Woman isa nothing;  or simply "not(Man and Woman)")
     Person is Man or Woman;
@@ -55,8 +55,8 @@ DL Syntax
     Mother is Woman and Parent;
     
   To specify a transitive role, use the "trans" keyword followed by role names
-  separated by at least one space and ending with a semicolon.
-  Example
+  separated by at least one space and ending with a semicolon. Example:
+  
     trans greaterThan equalTo;
 
 Usage
