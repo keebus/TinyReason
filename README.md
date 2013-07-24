@@ -44,6 +44,7 @@ DL Syntax
     "<for all>R.C" in common DL syntax.
   * If A is a concept, then "(A)" is a concept.  
 
+
   Examples:
 
     Man and Woman isa nothing;    or simply "not(Man and Woman)")
